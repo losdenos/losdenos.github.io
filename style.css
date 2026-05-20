@@ -51,6 +51,8 @@ body {
   height: 100%;
   pointer-events: none;
   z-index: 0;
+  background: transparent; 
+  display: block;           
 }
 
 /* ─── Page layout ────────────────────────────────────────── */
