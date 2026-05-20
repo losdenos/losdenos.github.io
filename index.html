@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Densley.co — Personal site for projects, about me, and shop." />
+    <meta property="og:title" content="Densley.co" />
+    <meta property="og:description" content="Personal site for projects, about me, and shop." />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#2e44cc" />
+    <title>Densley.co</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800&family=League+Spartan:wght@700;800&display=swap" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <canvas id="stars" aria-hidden="true"></canvas>
+
+    <main class="page-wrapper">
+      <h1 class="site-title">DENSLEY.CO</h1>
+
+      <nav class="cards-grid" aria-label="Site navigation">
+        <a href="about.html" class="nav-card" aria-label="About me">
+          <span class="card-icon" aria-hidden="true">🎮</span>
+          <span class="card-label">about me</span>
+        </a>
+
+        <a href="projects.html" class="nav-card" aria-label="Projects">
+          <span class="card-icon" aria-hidden="true">🕹️</span>
+          <span class="card-label">projects</span>
+        </a>
+
+        <a href="shop.html" class="nav-card" aria-label="Shop">
+          <span class="card-icon" aria-hidden="true">🧩</span>
+          <span class="card-label">shop</span>
+        </a>
+      </nav>
+    </main>
+
+    <script>
+      (function () {
+        const canvas = document.getElementById('stars');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+        let animFrame;
+
+        function resize() {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+        }
+
+        function createStars(count) {
+          stars = [];
+          for (let i = 0; i < count; i++) {
+            stars.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              r: Math.random() * 1.8 + 0.3,
+              opacity: Math.random(),
+              opacitySpeed: Math.random() * 0.004 + 0.001,
+              opacityDir: Math.random() > 0.5 ? 1 : -1,
+              vx: (Math.random() - 0.5) * 0.12,
+              vy: (Math.random() - 0.5) * 0.12,
+            });
+          }
+        }
+
+        function draw() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          for (const s of stars) {
+            s.opacity += s.opacitySpeed * s.opacityDir;
+            if (s.opacity >= 1) { s.opacity = 1; s.opacityDir = -1; }
+            if (s.opacity <= 0) { s.opacity = 0; s.opacityDir = 1; }
+            s.x += s.vx;
+            s.y += s.vy;
+            if (s.x < 0) s.x = canvas.width;
+            if (s.x > canvas.width) s.x = 0;
+            if (s.y < 0) s.y = canvas.height;
+            if (s.y > canvas.height) s.y = 0;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255,255,255,${s.opacity})`;
+            ctx.fill();
+          }
+          animFrame = requestAnimationFrame(draw);
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', function () {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(function () {
+            cancelAnimationFrame(animFrame);
+            resize();
+            createStars(160);
+            draw();
+          }, 150);
+        });
+
+        resize();
+        createStars(160);
+        draw();
+      })();
+    </script>
+  </body>
+</html>
