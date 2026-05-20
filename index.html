@@ -3,104 +3,154 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Densley.co — Personal site for projects, about me, and shop." />
-    <meta property="og:title" content="Densley.co" />
+    <meta name="description" content="LosDenso.co — Personal site for projects, about me, and shop." />
+    <meta property="og:title" content="LosDenso.co" />
     <meta property="og:description" content="Personal site for projects, about me, and shop." />
     <meta property="og:type" content="website" />
-    <meta name="theme-color" content="#2e44cc" />
+    <meta name="theme-color" content="#0a0a0f" />
     <title>LosDenso.co</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800&family=League+Spartan:wght@700;800&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Rajdhani:wght@500;700&display=swap" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <canvas id="stars" width="0" height="0" aria-hidden="true"></canvas>
+    <!-- Scanline overlay -->
+    <div class="scanlines" aria-hidden="true"></div>
+    <!-- Noise grain -->
+    <div class="grain" aria-hidden="true"></div>
+    <!-- Grid background -->
+    <div class="grid-bg" aria-hidden="true"></div>
 
     <main class="page-wrapper">
-      <h1 class="site-title">LosDenso.CO</h1>
+
+      <header class="header">
+        <div class="header-line" aria-hidden="true">
+          <span>SYS://LOSDENSO.CO</span>
+          <span class="blink">▮</span>
+        </div>
+        <h1 class="site-title">
+          <span class="title-los">LOS</span><span class="title-denso">DENSO</span><span class="title-dot">.CO</span>
+        </h1>
+        <div class="subtitle" aria-hidden="true">[ PERSONAL TERMINAL — SELECT MODULE ]</div>
+      </header>
 
       <nav class="cards-grid" aria-label="Site navigation">
-        <a href="about.html" class="nav-card" aria-label="About me">
-          <span class="card-icon" aria-hidden="true">🚶</span>
-          <span class="card-label">About me</span>
+
+        <a href="about.html" class="nav-card" data-index="01" aria-label="About me">
+          <div class="card-corner tl" aria-hidden="true"></div>
+          <div class="card-corner tr" aria-hidden="true"></div>
+          <div class="card-corner bl" aria-hidden="true"></div>
+          <div class="card-corner br" aria-hidden="true"></div>
+          <div class="card-scan" aria-hidden="true"></div>
+          <div class="card-inner">
+            <div class="card-index" aria-hidden="true">01</div>
+            <div class="card-icon-wrap">
+              <span class="card-icon" aria-hidden="true">🚶</span>
+              <div class="card-glow" aria-hidden="true"></div>
+            </div>
+            <div class="card-text">
+              <span class="card-label">ABOUT ME</span>
+              <span class="card-desc">identity.exe</span>
+            </div>
+          </div>
+          <div class="card-bar" aria-hidden="true"></div>
         </a>
 
-        <a href="projects.html" class="nav-card" aria-label="Projects">
-          <span class="card-icon" aria-hidden="true">⚙️</span>
-          <span class="card-label">Projects</span>
+        <a href="projects.html" class="nav-card featured" data-index="02" aria-label="Projects">
+          <div class="card-corner tl" aria-hidden="true"></div>
+          <div class="card-corner tr" aria-hidden="true"></div>
+          <div class="card-corner bl" aria-hidden="true"></div>
+          <div class="card-corner br" aria-hidden="true"></div>
+          <div class="card-scan" aria-hidden="true"></div>
+          <div class="card-inner">
+            <div class="card-index" aria-hidden="true">02</div>
+            <div class="card-icon-wrap">
+              <span class="card-icon" aria-hidden="true">⚙️</span>
+              <div class="card-glow" aria-hidden="true"></div>
+            </div>
+            <div class="card-text">
+              <span class="card-label">PROJECTS</span>
+              <span class="card-desc">builds.log</span>
+            </div>
+          </div>
+          <div class="card-bar" aria-hidden="true"></div>
         </a>
 
-        <a href="shop.html" class="nav-card" aria-label="Shop">
-          <span class="card-icon" aria-hidden="true">🛒</span>
-          <span class="card-label">Shop</span>
+        <a href="shop.html" class="nav-card" data-index="03" aria-label="Shop">
+          <div class="card-corner tl" aria-hidden="true"></div>
+          <div class="card-corner tr" aria-hidden="true"></div>
+          <div class="card-corner bl" aria-hidden="true"></div>
+          <div class="card-corner br" aria-hidden="true"></div>
+          <div class="card-scan" aria-hidden="true"></div>
+          <div class="card-inner">
+            <div class="card-index" aria-hidden="true">03</div>
+            <div class="card-icon-wrap">
+              <span class="card-icon" aria-hidden="true">🛒</span>
+              <div class="card-glow" aria-hidden="true"></div>
+            </div>
+            <div class="card-text">
+              <span class="card-label">SHOP</span>
+              <span class="card-desc">store.dat</span>
+            </div>
+          </div>
+          <div class="card-bar" aria-hidden="true"></div>
         </a>
+
       </nav>
+
+      <footer class="footer" aria-hidden="true">
+        <span class="footer-line">▸ UPTIME: <span id="uptime">00:00:00</span></span>
+        <span class="footer-line">▸ STATUS: <span class="status-ok">ONLINE</span></span>
+        <span class="footer-line">▸ v2.0.26</span>
+      </footer>
+
     </main>
 
     <script>
-      (function () {
-        const canvas = document.getElementById('stars');
-        const ctx = canvas.getContext('2d');
-        let stars = [];
-        let animFrame;
+      // Uptime counter
+      const start = Date.now();
+      function updateUptime() {
+        const s = Math.floor((Date.now() - start) / 1000);
+        const h = String(Math.floor(s / 3600)).padStart(2, '0');
+        const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+        const sec = String(s % 60).padStart(2, '0');
+        document.getElementById('uptime').textContent = `${h}:${m}:${sec}`;
+      }
+      setInterval(updateUptime, 1000);
 
-        function resize() {
-          canvas.width = window.innerWidth;
-          canvas.height = window.innerHeight;
-        }
-
-        function createStars(count) {
-          stars = [];
-          for (let i = 0; i < count; i++) {
-            stars.push({
-              x: Math.random() * canvas.width,
-              y: Math.random() * canvas.height,
-              r: Math.random() * 1.8 + 0.3,
-              opacity: Math.random(),
-              opacitySpeed: Math.random() * 0.004 + 0.001,
-              opacityDir: Math.random() > 0.5 ? 1 : -1,
-              vx: (Math.random() - 0.5) * 0.12,
-              vy: (Math.random() - 0.5) * 0.12,
-            });
-          }
-        }
-
-        function draw() {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          for (const s of stars) {
-            s.opacity += s.opacitySpeed * s.opacityDir;
-            if (s.opacity >= 1) { s.opacity = 1; s.opacityDir = -1; }
-            if (s.opacity <= 0) { s.opacity = 0; s.opacityDir = 1; }
-            s.x += s.vx;
-            s.y += s.vy;
-            if (s.x < 0) s.x = canvas.width;
-            if (s.x > canvas.width) s.x = 0;
-            if (s.y < 0) s.y = canvas.height;
-            if (s.y > canvas.height) s.y = 0;
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(255,255,255,${s.opacity})`;
-            ctx.fill();
-          }
-          animFrame = requestAnimationFrame(draw);
-        }
-
-        let resizeTimer;
-        window.addEventListener('resize', function () {
-          clearTimeout(resizeTimer);
-          resizeTimer = setTimeout(function () {
-            cancelAnimationFrame(animFrame);
-            resize();
-            createStars(160);
-            draw();
-          }, 150);
+      // Card glitch effect on hover
+      document.querySelectorAll('.nav-card').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+          card.classList.add('glitching');
+          setTimeout(() => card.classList.remove('glitching'), 400);
         });
+      });
 
-        resize();
-        createStars(160);
-        draw();
-      })();
+      // Random glitch on title
+      const title = document.querySelector('.site-title');
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%';
+      const original = 'LOSDENSO';
+      function glitchTitle() {
+        let count = 0;
+        const interval = setInterval(() => {
+          const los = document.querySelector('.title-los');
+          const denso = document.querySelector('.title-denso');
+          if (count < 6) {
+            const scramble = t => t.split('').map(c => c === ' ' ? ' ' : chars[Math.floor(Math.random() * chars.length)]).join('');
+            los.textContent = scramble('LOS');
+            denso.textContent = scramble('DENSO');
+          } else {
+            los.textContent = 'LOS';
+            denso.textContent = 'DENSO';
+            clearInterval(interval);
+          }
+          count++;
+        }, 60);
+      }
+      // Glitch on load then periodically
+      setTimeout(glitchTitle, 800);
+      setInterval(glitchTitle, 7000);
     </script>
   </body>
 </html>
