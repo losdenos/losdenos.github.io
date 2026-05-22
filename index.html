@@ -31,7 +31,7 @@
           <span class="blink">▮</span>
         </div>
         <h1 class="site-title">
-          <span class="title-los">Hello</span><span class="title-denso"> There!</span><span class="title-dot">.XYZ</span>
+          <span class="title-los">Hello</span><span class="title-denso"> There!</span><span class="title-dot"> user.</span>
         </h1>
         <div class="subtitle" aria-hidden="true">[ TERMINAL — SELECT MODULE ]</div>
       </header>
@@ -139,11 +139,11 @@
           const denso = document.querySelector('.title-denso');
           if (count < 6) {
             const scramble = t => t.split('').map(c => c === ' ' ? ' ' : chars[Math.floor(Math.random() * chars.length)]).join('');
-            los.textContent = scramble('LOS');
-            denso.textContent = scramble('DENSO');
+            los.textContent = scramble('HI');
+            denso.textContent = scramble('THERE');
           } else {
-            los.textContent = 'LOS';
-            denso.textContent = 'DENSO';
+            los.textContent = 'HEY';
+            denso.textContent = 'THERE';
             clearInterval(interval);
           }
           count++;
