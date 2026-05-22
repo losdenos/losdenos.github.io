@@ -7,8 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
       </a>
       <div class="nav-links">
         <a href="/"      class="nav-link">HOME</a>
-        <a href="/shop"  class="nav-link">SHOP</a>
-        <a href="/music" class="nav-link">MUSIC</a>
+        <a href="/about"  class="nav-link">ABOUT ME</a>
+        <a href="/projects" class="nav-link">PROJECTS</a>
+        <a href="/shop" class="nav-link">SHOP</a>
       </div>
       <div class="nav-cursor blink">▮</div>
     </div>
