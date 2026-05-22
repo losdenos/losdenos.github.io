@@ -35,6 +35,17 @@
         border-color: var(--card-accent);
         box-shadow: 0 0 20px rgba(200,255,0,0.25), 0 0 60px rgba(200,255,0,0.08), inset 0 0 30px rgba(200,255,0,0.05);
       }
+      .back-btn {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--neon);
+        text-decoration: none;
+        letter-spacing: 0.15em;
+        border: 1px solid var(--border);
+        padding: 0.6rem 1.25rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        clip-path: polygon(0 6px,6px 0,calc(100% - 6px) 0,100% 6px,100% calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,0 calc(100% - 6px));
+      }
 
       /* per-card corners */
       .card-valo  .card-corner { border-color: var(--card-accent) !important; }
