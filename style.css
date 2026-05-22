@@ -146,6 +146,7 @@ body {
   50%       { opacity: 0; }
 }
 
+/* ─── Top nav ────────────────────────────────────────────── */
 .topnav {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -154,30 +155,31 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem clamp(1.5rem, 5vw, 3rem);
-  background: rgba(7, 7, 15, 0.85);
-  backdrop-filter: blur(12px);
+  background: rgba(7, 7, 15, 0.82);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
-  font-family: var(--mono);
 }
 
 .nav-logo {
   font-family: var(--display);
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   letter-spacing: 0.06em;
   text-decoration: none;
+  line-height: 1;
 }
 
 .nav-links {
   display: flex;
-  gap: 2rem;
+  gap: clamp(1.25rem, 3vw, 2.5rem);
 }
 
 .nav-link {
-  font-size: 0.7rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
   letter-spacing: 0.18em;
   color: var(--text-dim);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color 0.2s, text-shadow 0.2s;
 }
 
 .nav-link:hover,
@@ -187,12 +189,15 @@ body {
 }
 
 .nav-cursor {
-  font-size: 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
   color: var(--neon);
 }
 
-/* push page content below the fixed nav */
-.page-wrapper { padding-top: calc(clamp(2rem, 5vh, 4rem) + 48px); }
+/* push content below fixed nav height (~48px) */
+.page-wrapper {
+  padding-top: calc(clamp(2rem, 5vh, 4rem) + 52px);
+}
 
 /* ─── Title ──────────────────────────────────────────────── */
 .site-title {
