@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Rajdhani:wght@500;700&display=swap" />
     <link rel="stylesheet" href="/style.css" />
+    <script async src="https://js.stripe.com/v3/buy-button.js"></script>
     <style>
-      /* ── Shop layout ── */
       .shop-wrapper {
         width: 100%;
         max-width: 80%;
@@ -20,7 +20,6 @@
         animation: fadeIn 0.6s ease 0.2s both;
       }
 
-      /* ── Listing card ── */
       .listing {
         position: relative;
         background: var(--surface);
@@ -35,7 +34,6 @@
       .listing-corner.bl { bottom:5px;left:5px;border-bottom:1.5px solid #b47fff;border-left:1.5px solid #b47fff; }
       .listing-corner.br { bottom:5px;right:5px;border-bottom:1.5px solid #b47fff;border-right:1.5px solid #b47fff; }
 
-      /* ── Header bar ── */
       .listing-header {
         display: flex;
         align-items: center;
@@ -96,7 +94,6 @@
         margin-top: 0.2rem;
       }
 
-      /* ── Body ── */
       .listing-body {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -105,6 +102,7 @@
 
       @media (max-width: 650px) {
         .listing-body { grid-template-columns: 1fr; }
+        .shop-wrapper { max-width: 95%; }
       }
 
       .listing-section {
@@ -132,7 +130,6 @@
         background: rgba(180,120,255,0.25);
       }
 
-      /* Stats grid */
       .stats-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -156,7 +153,6 @@
         letter-spacing: 0.1em;
       }
 
-      /* Skins list */
       .skins-list {
         display: flex;
         flex-direction: column;
@@ -181,7 +177,6 @@
       .tier-premium { background: #b47fff; box-shadow: 0 0 6px #b47fff; }
       .tier-ultra   { background: #ff8c00; box-shadow: 0 0 6px #ff8c00; }
 
-      /* Buddies / balance */
       .tags-row {
         display: flex;
         flex-wrap: wrap;
@@ -199,7 +194,6 @@
       .tag.green { border-color: rgba(0,255,231,0.3); color: var(--neon); }
       .tag.yellow { border-color: rgba(200,255,0,0.3); color: #c8ff00; }
 
-      /* Safety badges */
       .safety-list {
         display: flex;
         flex-direction: column;
@@ -214,13 +208,9 @@
         align-items: center;
         gap: 0.5rem;
       }
-      .safety-item .dot {
-        color: #c8ff00;
-        text-shadow: 0 0 8px #c8ff00;
-      }
+      .safety-item .dot { color: #c8ff00; text-shadow: 0 0 8px #c8ff00; }
       .safety-item .dot.red { color: #ff2d6f; text-shadow: 0 0 8px #ff2d6f; }
 
-      /* Top agents */
       .agents-row {
         display: flex;
         flex-direction: column;
@@ -243,8 +233,6 @@
         flex: 1;
         height: 4px;
         background: rgba(255,255,255,0.07);
-        position: relative;
-        clip-path: polygon(0 0,100% 0,100% 100%,0 100%);
       }
       .agent-bar {
         height: 100%;
@@ -258,7 +246,7 @@
         text-align: right;
       }
 
-      /* CTA */
+      /* ── CTA footer ── */
       .listing-footer {
         padding: 1.25rem 1.75rem;
         border-top: 1px solid rgba(180,120,255,0.2);
@@ -269,6 +257,7 @@
         gap: 1rem;
         background: rgba(180,120,255,0.04);
       }
+
       .payment-info {
         font-family: var(--mono);
         font-size: 0.62rem;
@@ -278,35 +267,21 @@
       }
       .payment-info span { color: var(--neon); }
 
-      .cta-btn {
-        font-family: var(--display);
-        font-size: 1.1rem;
-        letter-spacing: 0.12em;
-        color: #0a0a0f;
-        background: linear-gradient(135deg, #b47fff, #7b3fff);
-        padding: 0.75rem 2rem;
-        text-decoration: none;
-        clip-path: polygon(0 8px,8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px));
-        transition: filter 0.2s ease, transform 0.15s ease;
-        display: inline-block;
-      }
-      .cta-btn:hover {
-        filter: brightness(1.2) drop-shadow(0 0 16px rgba(180,120,255,0.6));
-        transform: translateY(-2px);
+      /* ── Stripe button wrapper — theme override ── */
+      .stripe-btn-wrap {
+        display: flex;
+        align-items: center;
       }
 
-      /* Sold badge */
-      .sold-badge {
-        font-family: var(--mono);
-        font-size: 0.65rem;
-        letter-spacing: 0.2em;
-        color: #ff2d6f;
-        border: 1px solid #ff2d6f;
-        padding: 0.2rem 0.6rem;
-        animation: blink 1.5s step-end infinite;
+      /* Force Stripe buy button to match the site palette */
+      stripe-buy-button {
+        --stripe-buy-button-background-color: #b47fff;
+        --stripe-buy-button-border-radius: 0px;
+        --stripe-buy-button-font-family: 'Bebas Neue', sans-serif;
+        --stripe-buy-button-font-size: 1.1rem;
+        --stripe-buy-button-color: #0a0a0f;
       }
 
-      /* Back btn */
       .back-btn {
         font-family: var(--mono);
         font-size: 0.75rem;
@@ -356,18 +331,19 @@
         <h1 class="site-title" style="font-size: clamp(2rem, 8vw, 5.5rem);">
           <span class="title-los">THE</span><span class="title-dot"> SHOP</span>
         </h1>
-        <div class="subtitle">[ store.dat — 2 LISTING ACTIVE ]</div>
+        <div class="subtitle">[ store.dat — 2 LISTINGS ACTIVE ]</div>
       </header>
 
       <div class="shop-wrapper">
-        <!-- ── ACCOUNT LISTING 1 ── -->
+
+        <!-- ── LISTING 1: DIAMOND 1 ── -->
         <div class="listing">
           <div class="listing-corner tl"></div>
           <div class="listing-corner tr"></div>
           <div class="listing-corner bl"></div>
           <div class="listing-corner br"></div>
-        <div class="listing-header">
-          
+
+          <div class="listing-header">
             <div class="listing-title-group">
               <div class="rank-badge">
                 <div class="rank-icon">💎</div>
@@ -385,49 +361,21 @@
             </div>
           </div>
 
-          <!-- Body -->
           <div class="listing-body">
-
-            <!-- Stats -->
             <div class="listing-section">
               <div class="section-title">ACCOUNT STATS</div>
               <div class="stats-grid">
-                <div class="stat">
-                  <div class="stat-val purple">DIAMOND 1</div>
-                  <div class="stat-label">CURRENT RANK</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val pink">IMMORTAL 2</div>
-                  <div class="stat-label">PEAK RANK</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val accent">272</div>
-                  <div class="stat-label">ACCOUNT LEVEL</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">1,943</div>
-                  <div class="stat-label">MATCHES PLAYED</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">1,085h</div>
-                  <div class="stat-label">PLAYTIME</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">50.1%</div>
-                  <div class="stat-label">WIN RATE</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">0.97</div>
-                  <div class="stat-label">K/D RATIO</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">32.5%</div>
-                  <div class="stat-label">HEADSHOT %</div>
-                </div>
+                <div class="stat"><div class="stat-val purple">DIAMOND 1</div><div class="stat-label">CURRENT RANK</div></div>
+                <div class="stat"><div class="stat-val pink">IMMORTAL 2</div><div class="stat-label">PEAK RANK</div></div>
+                <div class="stat"><div class="stat-val accent">272</div><div class="stat-label">ACCOUNT LEVEL</div></div>
+                <div class="stat"><div class="stat-val">1,943</div><div class="stat-label">MATCHES PLAYED</div></div>
+                <div class="stat"><div class="stat-val">1,085h</div><div class="stat-label">PLAYTIME</div></div>
+                <div class="stat"><div class="stat-val">50.1%</div><div class="stat-label">WIN RATE</div></div>
+                <div class="stat"><div class="stat-val">0.97</div><div class="stat-label">K/D RATIO</div></div>
+                <div class="stat"><div class="stat-val">32.5%</div><div class="stat-label">HEADSHOT %</div></div>
               </div>
             </div>
 
-            <!-- Top Agents -->
             <div class="listing-section">
               <div class="section-title">TOP AGENTS</div>
               <div class="agents-row">
@@ -457,7 +405,6 @@
               </div>
             </div>
 
-            <!-- Notable Skins -->
             <div class="listing-section">
               <div class="section-title">NOTABLE SKINS (33 TOTAL)</div>
               <div class="tier-legend">
@@ -479,34 +426,15 @@
               </div>
             </div>
 
-            <!-- Cosmetics & Safety -->
             <div class="listing-section">
               <div class="section-title">COSMETICS</div>
               <div class="stats-grid" style="margin-bottom:1rem;">
-                <div class="stat">
-                  <div class="stat-val">111</div>
-                  <div class="stat-label">BUDDIES</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">113</div>
-                  <div class="stat-label">SPRAYS</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">133</div>
-                  <div class="stat-label">PLAYER CARDS</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">127</div>
-                  <div class="stat-label">TITLES</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">28/29</div>
-                  <div class="stat-label">AGENTS</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">4×</div>
-                  <div class="stat-label">IMMORTAL BUDDIES</div>
-                </div>
+                <div class="stat"><div class="stat-val">111</div><div class="stat-label">BUDDIES</div></div>
+                <div class="stat"><div class="stat-val">113</div><div class="stat-label">SPRAYS</div></div>
+                <div class="stat"><div class="stat-val">133</div><div class="stat-label">PLAYER CARDS</div></div>
+                <div class="stat"><div class="stat-val">127</div><div class="stat-label">TITLES</div></div>
+                <div class="stat"><div class="stat-val">28/29</div><div class="stat-label">AGENTS</div></div>
+                <div class="stat"><div class="stat-val">4×</div><div class="stat-label">IMMORTAL BUDDIES</div></div>
               </div>
               <div class="section-title">ACCOUNT SAFETY</div>
               <div class="safety-list">
@@ -516,27 +444,29 @@
                 <div class="safety-item"><span class="dot red">✦</span> Waylay not unlocked (28/29 agents)</div>
               </div>
             </div>
-
           </div>
 
-          <!-- Footer / CTA -->
           <div class="listing-footer">
             <div class="payment-info">
-              <div>PAYMENT: <span>Online Banking · PayPal</span></div>
-              <div>CONTACT: <span>DM on Carousell</span></div>
+              <div>PAYMENT: <span>Stripe — Card · Apple Pay · Google Pay</span></div>
+              <div>CONTACT: <span>mail@losdenso.xyz</span></div>
             </div>
-            <a href="https://www.carousell.com.my/p/valorant-account-diamond-1-peak-immortal-2-original-owner-1438870725/" target="_blank" rel="noopener" class="cta-btn">VIEW ON CAROUSELL</a>
+            <div class="stripe-btn-wrap">
+              <stripe-buy-button
+                buy-button-id="buy_btn_1RVLdxRwKLFNYcgCMNdpvG0V"
+                publishable-key="pk_live_51RVKzSRwKLFNYcgCPnlDHTOXxn1yMkuHUzFqFhT0nXe6bxpE3i2bkrFLkbkpB2SyFBrFIEXO5GX0rNIFZgobZUO00vUiSTpTQ"
+              ></stripe-buy-button>
+            </div>
           </div>
         </div>
 
-        <!-- ── ACCOUNT LISTING 2 ── -->
+        <!-- ── LISTING 2: DIAMOND 2 ── -->
         <div class="listing">
           <div class="listing-corner tl"></div>
           <div class="listing-corner tr"></div>
           <div class="listing-corner bl"></div>
           <div class="listing-corner br"></div>
 
-          <!-- Header -->
           <div class="listing-header">
             <div class="listing-title-group">
               <div class="rank-badge">
@@ -555,49 +485,21 @@
             </div>
           </div>
 
-          <!-- Body -->
           <div class="listing-body">
-
-            <!-- Stats -->
             <div class="listing-section">
               <div class="section-title">ACCOUNT STATS</div>
               <div class="stats-grid">
-                <div class="stat">
-                  <div class="stat-val purple">DIAMOND 2</div>
-                  <div class="stat-label">CURRENT RANK</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val pink">IMMORTAL 2</div>
-                  <div class="stat-label">PEAK RANK</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val accent">259</div>
-                  <div class="stat-label">ACCOUNT LEVEL</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">1,405</div>
-                  <div class="stat-label">MATCHES PLAYED</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">794h</div>
-                  <div class="stat-label">PLAYTIME</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">49.0%</div>
-                  <div class="stat-label">WIN RATE</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">0.94</div>
-                  <div class="stat-label">K/D RATIO</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">31.6%</div>
-                  <div class="stat-label">HEADSHOT %</div>
-                </div>
+                <div class="stat"><div class="stat-val purple">DIAMOND 2</div><div class="stat-label">CURRENT RANK</div></div>
+                <div class="stat"><div class="stat-val pink">IMMORTAL 2</div><div class="stat-label">PEAK RANK</div></div>
+                <div class="stat"><div class="stat-val accent">259</div><div class="stat-label">ACCOUNT LEVEL</div></div>
+                <div class="stat"><div class="stat-val">1,405</div><div class="stat-label">MATCHES PLAYED</div></div>
+                <div class="stat"><div class="stat-val">794h</div><div class="stat-label">PLAYTIME</div></div>
+                <div class="stat"><div class="stat-val">49.0%</div><div class="stat-label">WIN RATE</div></div>
+                <div class="stat"><div class="stat-val">0.94</div><div class="stat-label">K/D RATIO</div></div>
+                <div class="stat"><div class="stat-val">31.6%</div><div class="stat-label">HEADSHOT %</div></div>
               </div>
             </div>
 
-            <!-- Top Agents -->
             <div class="listing-section">
               <div class="section-title">TOP AGENTS</div>
               <div class="agents-row">
@@ -627,7 +529,6 @@
               </div>
             </div>
 
-            <!-- Notable Skins -->
             <div class="listing-section">
               <div class="section-title">NOTABLE SKINS (31 TOTAL)</div>
               <div class="tier-legend">
@@ -637,7 +538,7 @@
                 <div class="legend-item"><div class="legend-dot" style="background:#5b9bff"></div>SELECT</div>
               </div>
               <div class="skins-list">
-                <div class="skin-item"><div class="skin-tier tier-ultra"></div>Hivemind Sword </div>
+                <div class="skin-item"><div class="skin-tier tier-ultra"></div>Hivemind Sword</div>
                 <div class="skin-item"><div class="skin-tier tier-premium"></div>Valiant Hero Vandal (Lv.4, 4 variants)</div>
                 <div class="skin-item"><div class="skin-tier tier-deluxe"></div>Hivemind Spectre</div>
                 <div class="skin-item"><div class="skin-tier tier-select"></div>Red Alert Operator</div>
@@ -646,34 +547,15 @@
               </div>
             </div>
 
-            <!-- Cosmetics & Safety -->
             <div class="listing-section">
               <div class="section-title">COSMETICS</div>
               <div class="stats-grid" style="margin-bottom:1rem;">
-                <div class="stat">
-                  <div class="stat-val">98</div>
-                  <div class="stat-label">BUDDIES</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">93</div>
-                  <div class="stat-label">SPRAYS</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">99</div>
-                  <div class="stat-label">PLAYER CARDS</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">97</div>
-                  <div class="stat-label">TITLES</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">23/29</div>
-                  <div class="stat-label">AGENTS</div>
-                </div>
-                <div class="stat">
-                  <div class="stat-val">2×</div>
-                  <div class="stat-label">IMMORTAL BUDDIES</div>
-                </div>
+                <div class="stat"><div class="stat-val">98</div><div class="stat-label">BUDDIES</div></div>
+                <div class="stat"><div class="stat-val">93</div><div class="stat-label">SPRAYS</div></div>
+                <div class="stat"><div class="stat-val">99</div><div class="stat-label">PLAYER CARDS</div></div>
+                <div class="stat"><div class="stat-val">97</div><div class="stat-label">TITLES</div></div>
+                <div class="stat"><div class="stat-val">23/29</div><div class="stat-label">AGENTS</div></div>
+                <div class="stat"><div class="stat-val">2×</div><div class="stat-label">IMMORTAL BUDDIES</div></div>
               </div>
               <div class="section-title">ACCOUNT SAFETY</div>
               <div class="safety-list">
@@ -683,19 +565,21 @@
                 <div class="safety-item"><span class="dot red">✦</span> Waylay, Harbor, Iso, Miks, Tejo, Vyse not unlocked</div>
               </div>
             </div>
-
           </div>
 
-          <!-- Footer / CTA -->
           <div class="listing-footer">
             <div class="payment-info">
-              <div>PAYMENT: <span>Online Banking · PayPal</span></div>
-              <div>CONTACT: <span>DM on Carousell</span></div>
+              <div>PAYMENT: <span>Stripe — Card · Apple Pay · Google Pay</span></div>
+              <div>CONTACT: <span>mail@losdenso.xyz</span></div>
             </div>
-            <a href="https://www.carousell.com.my/p/valorant-account-diamond-2-peak-immortal-2-original-owner-1437864274/" target="_blank" rel="noopener" class="cta-btn">VIEW ON CAROUSELL</a>
+            <div class="stripe-btn-wrap">
+              <stripe-buy-button
+                buy-button-id="buy_btn_1RVLdxRwKLFNYcgCMNdpvG0V"
+                publishable-key="pk_live_51RVKzSRwKLFNYcgCPnlDHTOXxn1yMkuHUzFqFhT0nXe6bxpE3i2bkrFLkbkpB2SyFBrFIEXO5GX0rNIFZgobZUO00vUiSTpTQ"
+              ></stripe-buy-button>
+            </div>
           </div>
         </div>
-        <!-- end listing -->
 
         <a href="/" class="back-btn" style="align-self:center;">◂ RETURN TO TERMINAL</a>
       </div>
