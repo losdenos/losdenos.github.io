@@ -11,100 +11,226 @@
     <link rel="stylesheet" href="/style.css" />
     <script src="/nav.js" defer></script>
     <style>
-      .page-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2rem;
+      .projects-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: clamp(0.75rem, 2vw, 1.5rem);
         width: 100%;
         max-width: 900px;
         animation: fadeIn 0.6s ease 0.2s both;
       }
-      .placeholder-box {
-        width: 100%;
-        border: 1px solid var(--border);
-        padding: 3rem 2rem;
-        text-align: center;
-        clip-path: polygon(0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px));
-        background: var(--surface);
+      @media (max-width: 600px) {
+        .projects-grid { grid-template-columns: 1fr; max-width: 380px; }
+      }
+
+      .proj-card {
         position: relative;
-      }
-      .placeholder-box .card-corner { position: absolute; width: 16px; height: 16px; }
-      .placeholder-box .card-corner.tl { top:4px;left:4px;border-top:1.5px solid var(--neon);border-left:1.5px solid var(--neon); }
-      .placeholder-box .card-corner.tr { top:4px;right:4px;border-top:1.5px solid var(--neon);border-right:1.5px solid var(--neon); }
-      .placeholder-box .card-corner.bl { bottom:4px;left:4px;border-bottom:1.5px solid var(--neon);border-left:1.5px solid var(--neon); }
-      .placeholder-box .card-corner.br { bottom:4px;right:4px;border-bottom:1.5px solid var(--neon);border-right:1.5px solid var(--neon); }
-      .placeholder-label {
-        font-family: var(--mono);
-        font-size: 0.7rem;
-        color: var(--text-dim);
-        letter-spacing: 0.2em;
-        margin-bottom: 1rem;
-      }
-      .placeholder-title {
-        font-family: var(--display);
-        font-size: clamp(2rem, 6vw, 4rem);
-        color: var(--neon);
-        text-shadow: 0 0 20px var(--neon);
-        letter-spacing: 0.06em;
-      }
-      .placeholder-hint {
-        font-family: var(--mono);
-        font-size: 0.65rem;
-        color: var(--text-dim);
-        margin-top: 1rem;
-        letter-spacing: 0.15em;
-      }
-      .back-btn {
-        font-family: var(--mono);
-        font-size: 0.75rem;
-        color: var(--neon);
+        display: flex;
+        flex-direction: column;
         text-decoration: none;
-        letter-spacing: 0.15em;
+        background: var(--surface);
         border: 1px solid var(--border);
-        padding: 0.6rem 1.25rem;
+        clip-path: polygon(0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px));
+        overflow: hidden;
         transition: border-color 0.2s, box-shadow 0.2s;
-        clip-path: polygon(0 6px,6px 0,calc(100% - 6px) 0,100% 6px,100% calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,0 calc(100% - 6px));
       }
-      .back-btn:hover {
+      .proj-card:hover {
         border-color: var(--neon);
-        box-shadow: 0 0 16px rgba(0,255,231,0.2);
+        box-shadow: 0 0 20px rgba(0,255,231,0.15), inset 0 0 24px rgba(0,255,231,0.04);
       }
+      .proj-card:active { transform: scale(0.98); transition-duration: 0.06s; }
+
+      .proj-corner { position: absolute; width: 14px; height: 14px; z-index: 2; transition: width 0.2s, height 0.2s; }
+      .proj-corner.tl { top:4px;left:4px;   border-top:1.5px solid var(--neon); border-left:1.5px solid var(--neon); }
+      .proj-corner.tr { top:4px;right:4px;  border-top:1.5px solid var(--neon); border-right:1.5px solid var(--neon); }
+      .proj-corner.bl { bottom:4px;left:4px; border-bottom:1.5px solid var(--neon); border-left:1.5px solid var(--neon); }
+      .proj-corner.br { bottom:4px;right:4px;border-bottom:1.5px solid var(--neon); border-right:1.5px solid var(--neon); }
+      .proj-card:hover .proj-corner { width: 20px; height: 20px; }
+
+      .proj-scan {
+        position: absolute; left:0; right:0; height:2px;
+        background: linear-gradient(90deg, transparent, var(--neon), transparent);
+        opacity: 0; top: -2px; z-index: 3;
+      }
+      .proj-card:hover .proj-scan { opacity: 0.5; animation: scanDown 1.2s linear infinite; }
+      @keyframes scanDown { 0%{top:-2px} 100%{top:100%} }
+
+      .proj-body {
+        padding: 1.4rem 1.4rem 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        flex: 1;
+        position: relative; z-index: 1;
+      }
+
+      .proj-year {
+        font-family: var(--mono);
+        font-size: 0.55rem;
+        color: var(--text-dim);
+        letter-spacing: 0.18em;
+      }
+
+      .proj-icon {
+        font-size: 2rem;
+        line-height: 1;
+        margin: 0.25rem 0;
+        filter: drop-shadow(0 0 8px rgba(0,255,231,0.3));
+        transition: filter 0.2s, transform 0.2s;
+        user-select: none;
+      }
+      .proj-card:hover .proj-icon {
+        filter: drop-shadow(0 0 14px rgba(0,255,231,0.6));
+        transform: scale(1.1);
+      }
+
+      .proj-name {
+        font-family: var(--display);
+        font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+        color: #fff;
+        letter-spacing: 0.06em;
+        line-height: 1.1;
+        transition: color 0.2s, text-shadow 0.2s;
+      }
+      .proj-card:hover .proj-name { color: var(--neon); text-shadow: 0 0 16px var(--neon); }
+
+      .proj-desc {
+        font-family: var(--mono);
+        font-size: 0.6rem;
+        color: var(--text-dim);
+        letter-spacing: 0.1em;
+        line-height: 1.5;
+      }
+
+      .proj-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin-top: 0.4rem;
+      }
+      .proj-tag {
+        font-family: var(--mono);
+        font-size: 0.52rem;
+        letter-spacing: 0.1em;
+        padding: 0.18rem 0.5rem;
+        border: 1px solid rgba(0,255,231,0.2);
+        color: rgba(0,255,231,0.55);
+        clip-path: polygon(0 3px,3px 0,calc(100% - 3px) 0,100% 3px,100% calc(100% - 3px),calc(100% - 3px) 100%,3px 100%,0 calc(100% - 3px));
+      }
+
+      .proj-footer {
+        padding: 0.65rem 1.4rem;
+        border-top: 1px solid rgba(0,255,231,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(0,255,231,0.03);
+        position: relative; z-index: 1;
+      }
+      .proj-cta {
+        font-family: var(--mono);
+        font-size: 0.58rem;
+        color: var(--neon);
+        letter-spacing: 0.14em;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+      }
+      .proj-card:hover .proj-cta { opacity: 1; }
+      .proj-arrow { font-size: 0.75rem; color: var(--neon); opacity: 0; transition: opacity 0.2s, transform 0.2s; }
+      .proj-card:hover .proj-arrow { opacity: 1; transform: translateX(3px); }
+
+      /* WIP card style */
+      .proj-card.wip {
+        border-color: rgba(200,255,0,0.15);
+        cursor: default;
+        pointer-events: none;
+        opacity: 0.55;
+      }
+      .proj-card.wip .proj-corner { border-color: var(--neon3) !important; }
+      .proj-card.wip .proj-name { color: var(--neon3); }
+      .proj-card.wip .proj-cta { color: var(--neon3); }
+      .proj-card.wip .proj-tag { border-color: rgba(200,255,0,0.2); color: rgba(200,255,0,0.45); }
     </style>
   </head>
   <body>
     <div class="scanlines" aria-hidden="true"></div>
-    <div class="grain" aria-hidden="true"></div>
-    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="grain"     aria-hidden="true"></div>
+    <div class="grid-bg"   aria-hidden="true"></div>
 
-    <main class="page-wrapper">
-      <header class="header" style="animation: fadeIn 0.6s ease both;">
+    <main class="page-wrapper" style="justify-content:flex-start; padding-top:clamp(2rem,5vh,3.5rem);">
+
+      <header class="header" style="animation:fadeIn 0.6s ease both;">
         <div class="header-line" aria-hidden="true">
           <span>/LOSDENSO.XYZ/PROJECTS</span>
           <span class="blink">▮</span>
         </div>
-        <h1 class="site-title" style="font-size: clamp(2rem, 8vw, 6rem);">
+        <h1 class="site-title" style="font-size:clamp(2rem,8vw,6rem);">
           <span class="title-los">PRO</span><span class="title-denso">JECTS</span>
         </h1>
-        <div class="subtitle">[ builds.log — MODULE LOADED ]</div>
+        <div class="subtitle">[ builds.log — 1 PROJECT LOADED ]</div>
       </header>
 
-      <div class="page-content">
-        <div class="placeholder-box">
-          <div class="card-corner tl"></div>
-          <div class="card-corner tr"></div>
-          <div class="card-corner bl"></div>
-          <div class="card-corner br"></div>
-          <div class="placeholder-label">// Test</div>
-          <div class="placeholder-title">⚙️ PROJECTS</div>
-          <div class="placeholder-hint">[ AWAITING INPUT  ]</div>
+      <div class="projects-grid">
+
+        <!-- ── IoT Energy Meter ── -->
+        <a href="/projects/iot-energy-meter/" class="proj-card"
+           onmouseenter="this.classList.add('glitching')"
+           onanimationend="this.classList.remove('glitching')">
+          <div class="proj-corner tl"></div><div class="proj-corner tr"></div>
+          <div class="proj-corner bl"></div><div class="proj-corner br"></div>
+          <div class="proj-scan" aria-hidden="true"></div>
+          <div class="proj-body">
+            <div class="proj-year">2020 · FINAL YEAR PROJECT</div>
+            <div class="proj-icon" aria-hidden="true">⚡</div>
+            <div class="proj-name">IOT ENERGY METER</div>
+            <div class="proj-desc">Real-time AC power monitoring via ESP32 + Blynk</div>
+            <div class="proj-tags">
+              <div class="proj-tag">ESP32</div>
+              <div class="proj-tag">C++</div>
+              <div class="proj-tag">BLYNK</div>
+              <div class="proj-tag">IoT</div>
+            </div>
+          </div>
+          <div class="proj-footer">
+            <div class="proj-cta">VIEW PROJECT</div>
+            <div class="proj-arrow">▶</div>
+          </div>
+        </a>
+
+        <!-- ── WIP slots ── -->
+        <div class="proj-card wip">
+          <div class="proj-corner tl"></div><div class="proj-corner tr"></div>
+          <div class="proj-corner bl"></div><div class="proj-corner br"></div>
+          <div class="proj-body">
+            <div class="proj-year">— · IN PROGRESS</div>
+            <div class="proj-icon" aria-hidden="true">🔧</div>
+            <div class="proj-name">COMING SOON</div>
+            <div class="proj-desc">Still being vibe coded...</div>
+          </div>
+          <div class="proj-footer">
+            <div class="proj-cta">WIP</div>
+          </div>
         </div>
-        <a href="/" class="back-btn">◂ RETURN TO TERMINAL</a>
+
+        <div class="proj-card wip">
+          <div class="proj-corner tl"></div><div class="proj-corner tr"></div>
+          <div class="proj-corner bl"></div><div class="proj-corner br"></div>
+          <div class="proj-body">
+            <div class="proj-year">— · IN PROGRESS</div>
+            <div class="proj-icon" aria-hidden="true">🔧</div>
+            <div class="proj-name">COMING SOON</div>
+            <div class="proj-desc">Still being vibe coded...</div>
+          </div>
+          <div class="proj-footer">
+            <div class="proj-cta">WIP</div>
+          </div>
+        </div>
+
       </div>
 
-      <footer class="footer" aria-hidden="true">
+      <footer class="footer" aria-hidden="true" style="margin-top:2rem;">
         <span class="footer-line">▸ MODULE: <span style="color:var(--neon)">PROJECTS</span></span>
-        <span class="footer-line">▸ STATUS: <span class="status-ok">ONLINE</span></span>
+        <span class="footer-line">▸ LOADED: <span class="status-ok">1 / 3</span></span>
         <span class="footer-line">▸ v2.0.26</span>
       </footer>
     </main>
