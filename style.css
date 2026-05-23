@@ -17,11 +17,11 @@ body { background: #fff; font-family: 'Courier New', monospace; overflow: hidden
 #scene {
   position: fixed; inset: 0; background: #fff;
   display: flex; align-items: center; justify-content: center;
-  opacity: 0; pointer-events: none; flex-direction: column; gap: 32px; z-index: 1;
+  opacity: 0; pointer-events: none; flex-direction: column; gap: clamp(12px, 2.5vh, 32px); z-index: 1;
 }
 #scene.visible { opacity: 1; pointer-events: all; transition: opacity 0.6s ease; }
 
-#keyboard-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity 0.4s ease, transform 0.4s ease; }
+#keyboard-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity 0.4s ease, transform 0.4s ease; transform-origin: center center; }
 #keyboard-wrap.hiding { opacity: 0; transform: scale(0.92); pointer-events: none; }
 
 .kb-row { display: flex; gap: 6px; justify-content: center; }
@@ -31,10 +31,23 @@ body { background: #fff; font-family: 'Courier New', monospace; overflow: hidden
   width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-family: 'Courier New', monospace; font-weight: bold; color: #000;
   box-shadow: 3px 3px 0 #000; transform: scale(0) rotate(var(--r, 0deg));
-  opacity: 0; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
+  opacity: 0; transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), opacity 0.18s ease;
   user-select: none;
 }
 .key.space-key { width: 220px; }
+.key.space-key.start-glow {
+  background: #ccff00; border-color: #88cc00; color: #1a3300;
+  box-shadow: 3px 3px 0 #88cc00, 0 0 10px #ccff00, 0 0 28px #aaee0088;
+  cursor: pointer; animation: spaceGlow 1.2s ease-in-out infinite;
+}
+.key.space-key.start-glow:hover {
+  background: #ddff33; box-shadow: 1px 1px 0 #88cc00, 0 0 20px #ccff00, 0 0 44px #bbff00aa;
+  transform: scale(1) translateY(2px) !important;
+}
+@keyframes spaceGlow {
+  0%,100% { box-shadow: 3px 3px 0 #88cc00, 0 0 8px #ccff00, 0 0 20px #aaee0066; }
+  50%      { box-shadow: 3px 3px 0 #88cc00, 0 0 18px #ddff00, 0 0 40px #bbff00aa; }
+}
 .key.enter-key {
   width: 72px; cursor: pointer; letter-spacing: 0.5px;
   background: #00e5ff; border-color: #00b8d4; color: #003d47;
@@ -142,7 +155,7 @@ body { background: #fff; font-family: 'Courier New', monospace; overflow: hidden
 #foot-footer {
   position: fixed; bottom: 0; left: 0; right: 0;
   display: flex; flex-direction: column; align-items: center;
-  padding-bottom: 18px; z-index: 41; pointer-events: none;
+  padding-bottom: 18px; z-index: 45; pointer-events: none;
   gap: 0;
 }
 #foot-canvas {
@@ -173,3 +186,31 @@ body { background: #fff; font-family: 'Courier New', monospace; overflow: hidden
   background: #000; color: #fff;
   box-shadow: 1px 1px 0 #000; transform: translateY(2px);
 }
+
+/* NAV responsive */
+@media (max-width: 480px) {
+  #nav-wrap {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .nav-btn {
+    width: 200px;
+    height: 52px;
+  }
+}
+
+/* BACK TOOLTIP */
+#back-tooltip {
+  position: fixed; pointer-events: none; z-index: 200;
+  font-family: 'Courier New', monospace; font-size: 11px; font-weight: bold;
+  letter-spacing: 1px; text-transform: uppercase;
+  background: #000; color: #fff;
+  padding: 5px 10px; border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(14px, -50%);
+  transition: opacity 0.3s ease;
+}
+#back-tooltip.visible { opacity: 1; }
+#back-tooltip.fade-out { opacity: 0; transition: opacity 0.6s ease; }

@@ -123,17 +123,99 @@ function playStartupChime() {
   } catch(e) {}
 }
 
+function scaleKeyboard() {
+  const kb = document.getElementById('keyboard-wrap');
+  if(!kb) return;
+  // Keyboard natural width ~455px (widest row), natural height ~240px
+  const naturalW = 460;
+  const naturalH = 260;
+  const targetW = window.innerWidth * 0.75;
+  const targetH = window.innerHeight * 0.55;
+  const scale = Math.min(targetW / naturalW, targetH / naturalH, 1);
+  kb.style.transform = 'scale(' + scale + ')';
+}
+
 function showScene(){
   const scene=document.getElementById('scene');
   scene.classList.add('visible');
+  scaleKeyboard();
+  window.addEventListener('resize', scaleKeyboard);
+  initFoot();
+  // Footer hidden until nav is ready
+  const _ffi = document.getElementById('foot-footer');
+  if(_ffi) _ffi.style.display = 'none';
+  // Wire email copy button once
+  const emailLink = document.getElementById('email-link');
+  if(emailLink) {
+    emailLink.style.cursor = 'pointer';
+    emailLink.addEventListener('click', () => {
+      const text = 'hi@losdenso.xyz';
+      try {
+        const el = document.createElement('textarea');
+        el.value = text; el.style.position='fixed'; el.style.opacity='0';
+        document.body.appendChild(el); el.focus(); el.select();
+        document.execCommand('copy'); document.body.removeChild(el);
+        const orig = emailLink.textContent;
+        emailLink.textContent = '✓ Copied!';
+        emailLink.style.background = '#000'; emailLink.style.color = '#fff';
+        setTimeout(() => { emailLink.textContent = orig; emailLink.style.background=''; emailLink.style.color=''; }, 1800);
+      } catch(err) {
+        navigator.clipboard && navigator.clipboard.writeText(text).then(() => {
+          emailLink.textContent = '✓ Copied!';
+          setTimeout(() => { emailLink.textContent = '⌥ Email'; }, 1800);
+        });
+      }
+    });
+  }
+
   const keys=[];
   document.querySelectorAll('#keyboard-wrap .key').forEach((key,ki)=>{
     key.style.setProperty('--r',((Math.random()-.5)*40)+'deg');
-    keys.push({el:key,delay:Math.floor(ki/10)*80+ki*40+Math.random()*60});
+    // Spread 46 keys across 580ms total (last key at ~580ms, showPressToStart at 700ms)
+    keys.push({el:key, delay: Math.round((ki/46)*580 + Math.random()*30)});
   });
   keys.sort((a,b)=>a.delay-b.delay);
   keys.forEach(k=>setTimeout(()=>k.el.classList.add('appeared'),k.delay));
-  setTimeout(startTyping, keys[keys.length-1].delay+400);
+  setTimeout(showPressToStart, 700);
+}
+
+function showPressToStart() {
+  const spaceKey = document.querySelector('#keyboard-wrap .key.space-key');
+  const enterKey = document.getElementById('enter-key');
+  if(!spaceKey) { startTyping(); return; }
+  spaceKey.textContent = 'PRESS TO START';
+  spaceKey.classList.add('start-glow');
+  playKeyClick(true);
+
+  function doStart() {
+    spaceKey.classList.remove('start-glow');
+    spaceKey.textContent = 'SPACE';
+    spaceKey.classList.add('pressed');
+    playKeyClick(true);
+    setTimeout(()=>spaceKey.classList.remove('pressed'), 120);
+    spaceKey.removeEventListener('click', doStart);
+    document.removeEventListener('keydown', onKey);
+    if(enterKey) enterKey.removeEventListener('click', doSkip);
+    startTyping();
+  }
+  function doSkip() {
+    spaceKey.classList.remove('start-glow');
+    spaceKey.textContent = 'SPACE';
+    spaceKey.removeEventListener('click', doStart);
+    document.removeEventListener('keydown', onKey);
+    if(enterKey) enterKey.removeEventListener('click', doSkip);
+    enterKey.classList.add('pressed');
+    playKeyClick(false, true);
+    setTimeout(()=>enterKey.classList.remove('pressed'), 120);
+    skipTyping = true;
+    morphToNav();
+  }
+  function onKey(e) {
+    if(e.code === 'Space') { e.preventDefault(); doStart(); }
+  }
+  spaceKey.addEventListener('click', doStart);
+  document.addEventListener('keydown', onKey);
+  if(enterKey) enterKey.addEventListener('click', doSkip);
 }
 
 // ── KEY SOUND ──
@@ -203,6 +285,50 @@ function playKeyClick(isSpace=false, isEnter=false) {
   } catch(e) {}
 }
 
+
+// ── NOSTALGIC NAV SOUND ──
+function playNavClick() {
+  try {
+    const ac = getAudioCtx();
+    const t = ac.currentTime;
+
+    // Windows 95-esque: short chord blip — major triad C5/E5/G5 + click
+    const notes = [523.25, 659.25, 783.99];
+    const master = ac.createGain();
+    master.gain.value = 0.4;
+    master.connect(ac.destination);
+
+    // Crisp noise click upfront
+    const bufLen = Math.floor(ac.sampleRate * 0.025);
+    const buf = ac.createBuffer(1, bufLen, ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/bufLen,3);
+    const noise = ac.createBufferSource(); noise.buffer=buf;
+    const nbp = ac.createBiquadFilter(); nbp.type='bandpass'; nbp.frequency.value=1200; nbp.Q.value=0.8;
+    const ng = ac.createGain(); ng.gain.setValueAtTime(0.5,t); ng.gain.exponentialRampToValueAtTime(0.001,t+0.04);
+    noise.connect(nbp); nbp.connect(ng); ng.connect(master);
+    noise.start(t); noise.stop(t+0.04);
+
+    notes.forEach((freq, i) => {
+      const nt = t + i*0.025;
+      const o1 = ac.createOscillator(); o1.type='sine'; o1.frequency.value=freq;
+      const o2 = ac.createOscillator(); o2.type='triangle'; o2.frequency.value=freq; o2.detune.value=6;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0,nt);
+      g.gain.linearRampToValueAtTime(0.18,nt+0.012);
+      g.gain.exponentialRampToValueAtTime(0.001,nt+0.28);
+      o1.connect(g); o2.connect(g); g.connect(master);
+      o1.start(nt); o1.stop(nt+0.32);
+      o2.start(nt); o2.stop(nt+0.32);
+    });
+
+    // Low thud
+    const thud = ac.createOscillator(); thud.type='sine'; thud.frequency.setValueAtTime(180,t); thud.frequency.exponentialRampToValueAtTime(60,t+0.06);
+    const tg = ac.createGain(); tg.gain.setValueAtTime(0.35,t); tg.gain.exponentialRampToValueAtTime(0.001,t+0.1);
+    thud.connect(tg); tg.connect(master); thud.start(t); thud.stop(t+0.12);
+
+  } catch(e) {}
+}
 // ── TYPING ──
 const TARGET='Welcome to LosDenso';
 let skipTyping = false;
@@ -217,6 +343,7 @@ function flashKey(ch, isSpace=false, isEnter=false){
 function startTyping(){
   const span=document.getElementById('typed-text'); let i=0;
   const enterKey=document.getElementById('enter-key');
+  // Re-bind enter to skip mid-typing (doSkip in showPressToStart handles pre-start)
   if(enterKey) enterKey.addEventListener('click',()=>{
     skipTyping=true;
     enterKey.classList.add('pressed');
@@ -252,22 +379,31 @@ function morphToNav(){
     });
     setTimeout(playStartupChime, 400);
     setTimeout(bindNav,600);
+    // Show footer now that nav is visible
+    const ff = document.getElementById('foot-footer');
+    if(ff) { ff.style.removeProperty('display'); ff.style.opacity='0'; setTimeout(()=>{ ff.style.transition='opacity 0.5s ease'; ff.style.opacity='1'; },50); }
   },700);
 }
+function _navHandler(page){ return function(){ playNavClick(); zoomPage(page); }; }
+let _navHandlers = {};
 function bindNav(){
-  document.getElementById('btn-about').addEventListener('click',zoomAbout);
-  document.getElementById('btn-projects').addEventListener('click',()=>{});
-  document.getElementById('btn-contact').addEventListener('click',()=>{});
+  ['about','projects','contact'].forEach(page=>{
+    const id = 'btn-'+page;
+    const el = document.getElementById(id);
+    if(!el) return;
+    // Remove any previous handler for this button
+    if(_navHandlers[id]) el.removeEventListener('click', _navHandlers[id]);
+    _navHandlers[id] = _navHandler(page);
+    el.addEventListener('click', _navHandlers[id]);
+  });
 }
 
 // ── ZOOM + TRUCK TRANSITION (canvas-drawn) ──
-function zoomAbout() {
-  const nav = document.getElementById('nav-wrap');
-  const btn = document.getElementById('btn-about');
-
-  ['btn-projects','btn-contact'].forEach(id=>{
-    document.getElementById(id).classList.add('fade-out');
-  });
+function zoomPage(page) {
+  const btnId = page === 'about' ? 'btn-about' : page === 'projects' ? 'btn-projects' : 'btn-contact';
+  const btn = document.getElementById(btnId);
+  const others = ['btn-about','btn-projects','btn-contact'].filter(id=>id!==btnId);
+  others.forEach(id=>document.getElementById(id).classList.add('fade-out'));
 
   const r = btn.getBoundingClientRect();
   const tx = window.innerWidth/2 - (r.left + r.width/2);
@@ -280,69 +416,47 @@ function zoomAbout() {
     btn.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
     btn.style.transform = `translate(${tx}px,${ty}px) scale(0.9)`;
     btn.style.opacity = '0';
-    setTimeout(()=>{ btn.style.display='none'; launchTruckCanvas(); }, 300);
+    setTimeout(()=>{ btn.style.display='none'; launchTruckCanvas(page); }, 300);
   }, 860);
 }
 
-function launchTruckCanvas() {
+function launchTruckCanvas(page='about') {
   const canvas = document.getElementById('truck-canvas');
   const ctx = canvas.getContext('2d');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   canvas.style.display = 'block';
+  // Hide footer during truck animation
+  const _ff = document.getElementById('foot-footer');
+  if(_ff) { _ff.style.transition='opacity 0.3s ease'; _ff.style.opacity='0'; setTimeout(()=>{ _ff.style.display='none'; },300); }
+
+  // Page content per section
+  const pageContent = {
+    about: `
+      <div class="about-content">
+        <h1>ABOUT ME</h1>
+        <p>I am LosDenso, a creator of digital experiences.</p>
+        <div class="placeholder-text">[ your detailed bio goes here ]</div>
+      </div>`,
+    projects: `
+      <div class="about-content">
+        <h1>PROJECTS</h1>
+        <p>A collection of things I have built and shipped.</p>
+        <div class="placeholder-text">[ your projects go here ]</div>
+      </div>`,
+    contact: `
+      <div class="about-content">
+        <h1>CONTACT</h1>
+        <p>Let's build something together.</p>
+        <div class="placeholder-text">[ your contact details go here ]</div>
+      </div>`,
+  };
 
   // About page (hidden initially)
   const aboutPage = document.createElement('div');
   aboutPage.id = 'about-page';
-  aboutPage.innerHTML = `
-    <div class="about-content">
-      <h1>ABOUT ME</h1>
-      <p>I am LosDenso, a creator of digital experiences.</p>
-      <div class="placeholder-text">[ your detailed bio goes here ]</div>
-    </div>
-    <div id="foot-footer">
-      <canvas id="foot-canvas" width="160" height="120"></canvas>
-      <div id="foot-links">
-        <a href="https://github.com" target="_blank">⌥ GitHub</a>
-        <a href="https://twitter.com" target="_blank">⌥ Twitter</a>
-        <div id="email-link">⌥ Email</div>
-      </div>
-    </div>
-  `;
+  aboutPage.innerHTML = (pageContent[page] || pageContent.about);
   document.body.appendChild(aboutPage);
-
-  // Copy email to clipboard on click
-  const emailLink = document.getElementById('email-link');
-  if(emailLink) {
-    emailLink.style.cursor = 'pointer';
-    emailLink.addEventListener('click', () => {
-      const text = 'hi@losdenso.xyz';
-      try {
-        const el = document.createElement('textarea');
-        el.value = text;
-        el.style.position = 'fixed';
-        el.style.opacity = '0';
-        document.body.appendChild(el);
-        el.focus(); el.select();
-        document.execCommand('copy');
-        document.body.removeChild(el);
-        const orig = emailLink.textContent;
-        emailLink.textContent = '✓ Copied!';
-        emailLink.style.background = '#000';
-        emailLink.style.color = '#fff';
-        setTimeout(() => {
-          emailLink.textContent = orig;
-          emailLink.style.background = '';
-          emailLink.style.color = '';
-        }, 1800);
-      } catch(err) {
-        navigator.clipboard && navigator.clipboard.writeText(text).then(() => {
-          emailLink.textContent = '✓ Copied!';
-          setTimeout(() => { emailLink.textContent = '⌥ Email'; }, 1800);
-        });
-      }
-    });
-  }
 
   // Truck geometry (in canvas coords)
   const W = canvas.width, H = canvas.height;
@@ -433,7 +547,7 @@ function launchTruckCanvas() {
     ctx.font='bold 11px "Courier New",monospace';
     ctx.textAlign='center';
     ctx.textBaseline='middle';
-    ctx.fillText('ABOUT ME', x+(tw-cabW+8)/2, y+th/2);
+    ctx.fillText('LOS DENSO', x+(tw-cabW+8)/2, y+th/2);
 
     // Trailer hatch lines for detail
     ctx.strokeStyle='rgba(0,0,0,0.12)';
@@ -599,8 +713,11 @@ function launchTruckCanvas() {
         // Trigger entrance animations on about content
         const content = aboutPage.querySelector('.about-content');
         if(content) requestAnimationFrame(()=>content.classList.add('animate'));
-        // Start foot animation after content settles
-        setTimeout(initFoot, 700);
+        // Show "click to go back" tooltip then wire up back navigation
+        setTimeout(()=>initBackToNav(aboutPage), 900);
+        // Restore footer above the content page
+        const _ff2 = document.getElementById('foot-footer');
+        if(_ff2) { _ff2.style.display=''; _ff2.style.opacity='0'; setTimeout(()=>{ _ff2.style.transition='opacity 0.5s ease'; _ff2.style.opacity='1'; },100); }
         ctx.restore();
         return;
       }
@@ -650,6 +767,88 @@ function launchTruckCanvas() {
   setTimeout(()=>requestAnimationFrame(frame), 100);
 }
 
+
+// ── BACK TO NAV ──
+function initBackToNav(pageEl) {
+  // Create tooltip
+  const tip = document.createElement('div');
+  tip.id = 'back-tooltip';
+  tip.textContent = 'Click anywhere to go back';
+  document.body.appendChild(tip);
+
+  // Follow mouse
+  function onMove(e) {
+    tip.style.left = e.clientX + 'px';
+    tip.style.top  = e.clientY + 'px';
+  }
+  document.addEventListener('mousemove', onMove);
+
+  // Show it
+  requestAnimationFrame(()=>tip.classList.add('visible'));
+
+  // Fade out after 3s
+  const fadeTimer = setTimeout(()=>{
+    tip.classList.remove('visible');
+    tip.classList.add('fade-out');
+  }, 3000);
+
+  // Click anywhere = go back
+  function goBack() {
+    clearTimeout(fadeTimer);
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('click', goBack);
+    tip.remove();
+
+    // Fade out the page and footer together
+    pageEl.style.transition = 'opacity 0.4s ease';
+    pageEl.style.opacity = '0';
+    const _ffb = document.getElementById('foot-footer');
+    if(_ffb) { _ffb.style.transition='opacity 0.3s ease'; _ffb.style.opacity='0'; }
+    setTimeout(()=>{
+      pageEl.remove();
+
+      // Restore scene (it was hidden via display:none)
+      const scene = document.getElementById('scene');
+      scene.style.removeProperty('display');
+      // scene already has .visible class from before — just make sure
+      scene.classList.add('visible');
+
+      // Reset all nav buttons — clear all inline styles cleanly
+      const nav = document.getElementById('nav-wrap');
+      document.querySelectorAll('.nav-btn').forEach(btn=>{
+        btn.classList.remove('fade-out', 'appeared');
+        // Remove only transform/opacity/display inline styles, not --r
+        btn.style.removeProperty('transform');
+        btn.style.removeProperty('opacity');
+        btn.style.removeProperty('display');
+        btn.style.removeProperty('transition');
+      });
+
+      // Hide nav without fighting CSS class transitions
+      nav.style.opacity = '0';
+      nav.style.pointerEvents = 'none';
+      nav.classList.add('visible'); // keep it in flow, just invisible via inline
+
+      // Small frame delay then pop buttons in
+      requestAnimationFrame(()=>{
+        nav.style.removeProperty('opacity');
+        nav.style.removeProperty('pointer-events');
+        document.querySelectorAll('.nav-btn').forEach((btn,i)=>{
+          btn.style.setProperty('--r', ((Math.random()-.5)*20)+'deg');
+          setTimeout(()=>btn.classList.add('appeared'), i*100+50);
+        });
+        setTimeout(bindNav, 400);
+        // Fade footer back in with nav
+        const _ffr = document.getElementById('foot-footer');
+        if(_ffr) { _ffr.style.display=''; setTimeout(()=>{ _ffr.style.transition='opacity 0.5s ease'; _ffr.style.opacity='1'; },200); }
+      });
+    }, 400);
+  }
+
+  // Small delay so the page-reveal click doesn't immediately trigger goBack
+  setTimeout(()=>document.addEventListener('click', goBack), 600);
+}
+
 // ── FOOT FOOTER ──
 function initFoot() {
   const fc = document.getElementById('foot-canvas');
@@ -672,51 +871,62 @@ function initFoot() {
   const toeWiggle = [0,0,0,0,0];
   const toePhase  = [0, 0.4, 0.8, 1.2, 1.6];
 
+  // Foot coords tuned for 100x80 canvas — wider foot, proper toe proportions
+  // Foot body centred ~(50,52), toes across top
   const toeData = [
-    { x:58, y:35, rx:9,  ry:11 },
-    { x:72, y:28, rx:8,  ry:10 },
-    { x:85, y:30, rx:7,  ry:9  },
-    { x:96, y:35, rx:6,  ry:8  },
-    { x:104,y:43, rx:5,  ry:7  },
+    { x:28, y:18, rx:7,  ry:9  },
+    { x:39, y:13, rx:7,  ry:9  },
+    { x:51, y:12, rx:6.5,ry:8.5},
+    { x:62, y:14, rx:6,  ry:8  },
+    { x:71, y:20, rx:5,  ry:7  },
   ];
 
   function drawFoot(scaleX=1) {
     cx.save();
     cx.translate(W/2, H/2); cx.scale(scaleX, 1); cx.translate(-W/2, -H/2);
-    cx.fillStyle='#fff'; cx.strokeStyle='#000'; cx.lineWidth=2.5;
+    cx.fillStyle='#fff'; cx.strokeStyle='#000'; cx.lineWidth=2;
 
-    cx.beginPath(); cx.ellipse(75,95,30,20,0,0,Math.PI*2); cx.fill(); cx.stroke();
+    // Heel — flatter ellipse, less dominant
+    cx.beginPath(); cx.ellipse(50,68,24,11,0,0,Math.PI*2); cx.fill(); cx.stroke();
+    // Main foot body — wider and shorter
     cx.beginPath();
-    cx.moveTo(48,92); cx.bezierCurveTo(38,70,42,45,58,38);
-    cx.bezierCurveTo(72,32,90,36,100,50); cx.bezierCurveTo(110,62,108,80,102,92);
-    cx.bezierCurveTo(90,100,60,100,48,92); cx.fill(); cx.stroke();
+    cx.moveTo(26,62);
+    cx.bezierCurveTo(18,48,22,30,33,24);
+    cx.bezierCurveTo(43,19,60,19,70,26);
+    cx.bezierCurveTo(79,33,80,50,74,62);
+    cx.bezierCurveTo(65,70,35,70,26,62);
+    cx.fill(); cx.stroke();
 
     toeData.forEach((td,i) => {
       const off = toeWiggle[i];
-      cx.beginPath(); cx.ellipse(td.x,td.y+off,td.rx,td.ry,-0.2+i*0.08,0,Math.PI*2);
-      cx.fillStyle='#fff'; cx.fill(); cx.strokeStyle='#000'; cx.lineWidth=2.5; cx.stroke();
-      cx.beginPath(); cx.ellipse(td.x,td.y+off-td.ry*0.25,td.rx*0.6,td.ry*0.35,-0.2+i*0.08,0,Math.PI*2);
-      cx.fillStyle='#ddd'; cx.fill(); cx.strokeStyle='#aaa'; cx.lineWidth=1; cx.stroke();
-      cx.strokeStyle='#000'; cx.lineWidth=2.5;
+      cx.beginPath(); cx.ellipse(td.x,td.y+off,td.rx,td.ry,-0.15+i*0.06,0,Math.PI*2);
+      cx.fillStyle='#fff'; cx.fill(); cx.strokeStyle='#000'; cx.lineWidth=2; cx.stroke();
+      cx.beginPath(); cx.ellipse(td.x,td.y+off-td.ry*0.28,td.rx*0.55,td.ry*0.32,-0.15+i*0.06,0,Math.PI*2);
+      cx.fillStyle='#ddd'; cx.fill(); cx.strokeStyle='#aaa'; cx.lineWidth=0.8; cx.stroke();
+      cx.strokeStyle='#000'; cx.lineWidth=2;
     });
 
-    cx.strokeStyle='rgba(0,0,0,0.12)'; cx.lineWidth=1.5;
-    cx.beginPath(); cx.moveTo(55,75); cx.quadraticCurveTo(80,70,100,75); cx.stroke();
-    cx.beginPath(); cx.moveTo(58,85); cx.quadraticCurveTo(78,81,98,85); cx.stroke();
+    // Subtle foot lines
+    cx.strokeStyle='rgba(0,0,0,0.10)'; cx.lineWidth=1.2;
+    cx.beginPath(); cx.moveTo(33,48); cx.quadraticCurveTo(50,44,68,48); cx.stroke();
+    cx.beginPath(); cx.moveTo(35,56); cx.quadraticCurveTo(50,53,66,56); cx.stroke();
     cx.restore();
   }
 
   function drawBack(scaleX=1) {
     cx.save();
     cx.translate(W/2,H/2); cx.scale(scaleX,1); cx.translate(-W/2,-H/2);
-    cx.fillStyle='#000'; cx.strokeStyle='#000'; cx.lineWidth=2.5;
-    cx.beginPath(); cx.ellipse(75,95,30,20,0,0,Math.PI*2); cx.fill();
+    cx.fillStyle='#000'; cx.strokeStyle='#000'; cx.lineWidth=2;
+    cx.beginPath(); cx.ellipse(50,68,24,11,0,0,Math.PI*2); cx.fill();
     cx.beginPath();
-    cx.moveTo(48,92); cx.bezierCurveTo(38,70,42,45,58,38);
-    cx.bezierCurveTo(72,32,90,36,100,50); cx.bezierCurveTo(110,62,108,80,102,92);
-    cx.bezierCurveTo(90,100,60,100,48,92); cx.fill();
+    cx.moveTo(26,62);
+    cx.bezierCurveTo(18,48,22,30,33,24);
+    cx.bezierCurveTo(43,19,60,19,70,26);
+    cx.bezierCurveTo(79,33,80,50,74,62);
+    cx.bezierCurveTo(65,70,35,70,26,62);
+    cx.fill();
     toeData.forEach(td => {
-      cx.beginPath(); cx.ellipse(td.x,td.y,td.rx,td.ry,-0.2,0,Math.PI*2); cx.fill();
+      cx.beginPath(); cx.ellipse(td.x,td.y,td.rx,td.ry,-0.15,0,Math.PI*2); cx.fill();
     });
     cx.restore();
   }
@@ -725,15 +935,15 @@ function initFoot() {
     toePhase.forEach((p,i) => { toeWiggle[i] = Math.sin(wiggleT*3+p)*amt; });
   }
 
-  function doFlipStep(towardBack) {
-    flipAngle = Math.min(1, flipAngle + 0.05);
+  function doFlipStep(towardBack, dt=1) {
+    flipAngle = Math.min(1, flipAngle + 0.05*dt);
     const ease = flipAngle < 0.5
       ? 4*flipAngle*flipAngle*flipAngle
       : 1-Math.pow(-2*flipAngle+2,3)/2;
     const scaleX = Math.cos(ease*Math.PI);
 
     if(towardBack) {
-      if(scaleX >= 0) { wiggleT+=0.12; setWiggle(5*(1-ease*2)); drawFoot(scaleX); }
+      if(scaleX >= 0) { wiggleT+=0.12*dt; setWiggle(5*(1-ease*2)); drawFoot(scaleX); }
       else { cx.clearRect(0,0,W,H); cx.save(); cx.translate(W/2,H/2); cx.scale(-scaleX,1); cx.translate(-W/2,-H/2); cx.globalAlpha=footAlpha; drawBack(); cx.restore(); }
     } else {
       // flipping back to front — mirror the logic
@@ -747,55 +957,56 @@ function initFoot() {
   const links = document.getElementById('foot-links');
   let flipBackTimer = null;
 
-  function loop() {
+  let lastTs = null;
+
+  function loop(ts) {
+    // Cap delta to 50ms (1 frame at 20fps) to prevent catch-up bursts
+    const dt = lastTs ? Math.min((ts - lastTs) / (1000/60), 3) : 1;
+    lastTs = ts;
+
     cx.clearRect(0,0,W,H);
-    if(footAlpha < 1) footAlpha = Math.min(1, footAlpha+0.04);
+    if(footAlpha < 1) footAlpha = Math.min(1, footAlpha + 0.04*dt);
     cx.globalAlpha = footAlpha;
 
     if(phase === 'idle') {
-      // Periodic idle wiggle every ~3s
-      nextIdleWiggle--;
+      nextIdleWiggle -= dt;
       if(nextIdleWiggle <= 0 && !idleWiggleActive) {
         idleWiggleActive = true; idleWiggleDuration = 0;
       }
       if(idleWiggleActive) {
-        idleWiggleDuration++;
-        wiggleT += 0.12;
+        idleWiggleDuration += dt;
+        wiggleT += 0.12*dt;
         setWiggle(5);
-        if(idleWiggleDuration > 55) { // ~0.9s of wiggle
+        if(idleWiggleDuration > 55) {
           idleWiggleActive = false;
           nextIdleWiggle = 180 + Math.random()*120;
           toeWiggle.fill(0);
         }
       } else {
-        // Dampen toes back to 0
-        toeWiggle.forEach((_,i)=>{ toeWiggle[i]*=0.8; });
+        toeWiggle.forEach((_,i)=>{ toeWiggle[i]*=Math.pow(0.8,dt); });
       }
       drawFoot(1);
     }
     else if(phase === 'wiggle') {
-      wiggleT += 0.12;
+      wiggleT += 0.12*dt;
       setWiggle(5);
-      // Flip after ~2s of wiggling on hover
       if(wiggleT > 9) { phase='flip-to-back'; flipAngle=0; wiggleT=0; }
       drawFoot(1);
     }
     else if(phase === 'flip-to-back') {
-      const done = doFlipStep(true);
+      const done = doFlipStep(true, dt);
       if(done) {
         phase = 'showing-back';
         if(links) links.classList.add('visible');
-        // Schedule flip-back if mouse already left
         if(!isHovered) scheduleFlipBack();
       }
     }
     else if(phase === 'showing-back') {
-      // Draw back face steady
       cx.save(); cx.translate(W/2,H/2); cx.scale(-1,1); cx.translate(-W/2,-H/2);
       drawBack(); cx.restore();
     }
     else if(phase === 'flip-to-front') {
-      const done = doFlipStep(false);
+      const done = doFlipStep(false, dt);
       if(done) {
         phase = 'idle';
         flipAngle = 0; wiggleT = 0;
