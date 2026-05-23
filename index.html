@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LosDenso</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="scene">
+  <div id="typed-display"><span id="typed-text"></span><span id="cursor"></span></div>
+  <div id="keyboard-wrap">
+    <div class="kb-row">
+      <div class="key" data-char="`">~</div>
+      <div class="key" data-char="1">1</div>
+      <div class="key" data-char="2">2</div>
+      <div class="key" data-char="3">3</div>
+      <div class="key" data-char="4">4</div>
+      <div class="key" data-char="5">5</div>
+      <div class="key" data-char="6">6</div>
+      <div class="key" data-char="7">7</div>
+      <div class="key" data-char="8">8</div>
+      <div class="key" data-char="9">9</div>
+      <div class="key" data-char="0">0</div>
+    </div>
+    <div class="kb-row">
+      <div class="key" data-char="q">Q</div>
+      <div class="key" data-char="w">W</div>
+      <div class="key" data-char="e">E</div>
+      <div class="key" data-char="r">R</div>
+      <div class="key" data-char="t">T</div>
+      <div class="key" data-char="y">Y</div>
+      <div class="key" data-char="u">U</div>
+      <div class="key" data-char="i">I</div>
+      <div class="key" data-char="o">O</div>
+      <div class="key" data-char="p">P</div>
+    </div>
+    <div class="kb-row">
+      <div class="key mid-key" data-char="">CAP</div>
+      <div class="key" data-char="a">A</div>
+      <div class="key" data-char="s">S</div>
+      <div class="key" data-char="d">D</div>
+      <div class="key" data-char="f">F</div>
+      <div class="key" data-char="g">G</div>
+      <div class="key" data-char="h">H</div>
+      <div class="key" data-char="j">J</div>
+      <div class="key" data-char="k">K</div>
+      <div class="key" data-char="l">L</div>
+    </div>
+    <div class="kb-row">
+      <div class="key wide-key" data-char="shift">SHF</div>
+      <div class="key" data-char="z">Z</div>
+      <div class="key" data-char="x">X</div>
+      <div class="key" data-char="c">C</div>
+      <div class="key" data-char="v">V</div>
+      <div class="key" data-char="b">B</div>
+      <div class="key" data-char="n">N</div>
+      <div class="key" data-char="m">M</div>
+      <div class="key wide-key" data-char="shift2">SHF</div>
+      <div class="key enter-key" data-char="enter" id="enter-key">↵ SKIP</div>
+    </div>
+    <div class="kb-row">
+      <div class="key space-key" data-char=" ">SPACE</div>
+    </div>
+  </div>
+  <div id="nav-wrap">
+    <div class="nav-btn" id="btn-about">About Me</div>
+    <div class="nav-btn" id="btn-projects">Projects</div>
+    <div class="nav-btn" id="btn-contact">Contact</div>
+  </div>
+</div>
+
+<canvas id="truck-canvas"></canvas>
+<canvas id="train-canvas"></canvas>
+<div id="loader"><div id="loader-text">Loading LosDenso...</div></div>
+<canvas id="crack-canvas"></canvas>
+<script src="script.js"></script>
+</body>
+</html>

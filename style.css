@@ -1,0 +1,173 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #fff; font-family: 'Courier New', monospace; overflow: hidden; width: 100%; height: 100vh; }
+
+#loader {
+  position: fixed; inset: 0; background: #fff; z-index: 100;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 40px;
+}
+#loader-text {
+  font-size: 13px; letter-spacing: 4px; color: #000;
+  font-family: 'Courier New', monospace; text-transform: uppercase;
+  opacity: 0; animation: fadeText 0.5s ease 0.3s forwards;
+}
+@keyframes fadeText { to { opacity: 1; } }
+
+#crack-canvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 101; pointer-events: none; }
+
+#scene {
+  position: fixed; inset: 0; background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; flex-direction: column; gap: 32px; z-index: 1;
+}
+#scene.visible { opacity: 1; pointer-events: all; transition: opacity 0.6s ease; }
+
+#keyboard-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity 0.4s ease, transform 0.4s ease; }
+#keyboard-wrap.hiding { opacity: 0; transform: scale(0.92); pointer-events: none; }
+
+.kb-row { display: flex; gap: 6px; justify-content: center; }
+
+.key {
+  background: #fff; border: 2.5px solid #000; border-radius: 6px;
+  width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-family: 'Courier New', monospace; font-weight: bold; color: #000;
+  box-shadow: 3px 3px 0 #000; transform: scale(0) rotate(var(--r, 0deg));
+  opacity: 0; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease;
+  user-select: none;
+}
+.key.space-key { width: 220px; }
+.key.enter-key {
+  width: 72px; cursor: pointer; letter-spacing: 0.5px;
+  background: #00e5ff; border-color: #00b8d4; color: #003d47;
+  box-shadow: 3px 3px 0 #00b8d4, 0 0 10px #00e5ff, 0 0 24px #00cfee88;
+  animation: enterGlow 1.4s ease-in-out infinite;
+}
+.key.enter-key:hover {
+  background: #00ffff; color: #002a33;
+  box-shadow: 1px 1px 0 #00b8d4, 0 0 18px #00ffff, 0 0 40px #00eeffaa;
+  transform: scale(1) translateY(2px) !important;
+}
+@keyframes enterGlow {
+  0%, 100% { box-shadow: 3px 3px 0 #00b8d4, 0 0 8px #00e5ff, 0 0 20px #00cfee66; }
+  50%       { box-shadow: 3px 3px 0 #00b8d4, 0 0 16px #00ffff, 0 0 38px #00eeffaa; }
+}
+.key.wide-key  { width: 58px; }
+.key.mid-key   { width: 48px; }
+.key.appeared  { transform: scale(1) rotate(0deg); opacity: 1; }
+.key.pressed {
+  transform: scale(1) rotate(0deg) translateY(2px) !important;
+  box-shadow: 1px 1px 0 #000; background: #000; color: #fff;
+  transition: transform 0.05s, box-shadow 0.05s, background 0.05s, color 0.05s;
+}
+
+/* NAV */
+#nav-wrap {
+  display: flex; gap: 16px; justify-content: center;
+  opacity: 0; pointer-events: none; position: absolute;
+  transition: opacity 0.4s ease;
+}
+#nav-wrap.visible { opacity: 1; pointer-events: all; }
+
+.nav-btn {
+  background: #fff; border: 2.5px solid #000; border-radius: 6px;
+  width: 140px; height: 56px; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-family: 'Courier New', monospace; font-weight: bold; color: #000;
+  box-shadow: 4px 4px 0 #000; cursor: pointer; letter-spacing: 1.5px; text-transform: uppercase;
+  transform: scale(0) rotate(var(--r, 0deg)); opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease,
+              background 0.1s, color 0.1s, box-shadow 0.1s;
+  user-select: none;
+}
+.nav-btn.appeared { transform: scale(1) rotate(0deg); opacity: 1; }
+.nav-btn:hover { background: #000; color: #fff; box-shadow: 2px 2px 0 #000; transform: scale(1) translateY(2px) !important; }
+.nav-btn:active { transform: scale(1) translateY(4px) !important; box-shadow: 1px 1px 0 #000; }
+.nav-btn.fade-out { opacity: 0 !important; transform: scale(0.8) !important; transition: opacity 0.35s ease, transform 0.35s ease !important; pointer-events: none; }
+
+/* TYPED DISPLAY */
+#typed-display {
+  font-family: 'Courier New', monospace; font-size: 28px; font-weight: bold;
+  letter-spacing: 2px; color: #000; min-height: 40px; border-bottom: 3px solid #000;
+  padding-bottom: 4px; min-width: 360px; text-align: center; transition: opacity 0.3s ease;
+}
+#typed-display.hiding { opacity: 0; }
+#cursor {
+  display: inline-block; width: 3px; height: 28px; background: #000;
+  vertical-align: middle; margin-left: 2px; animation: blink 0.7s step-end infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* TRUCK TRANSITION */
+#truck-canvas {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  z-index: 50; pointer-events: none; display: none;
+}
+
+/* ABOUT PAGE */
+#about-page {
+  position: fixed; inset: 0; background: #fff; z-index: 40;
+  display: flex; align-items: center; justify-content: center;
+  clip-path: inset(0 100% 0 0);
+}
+.about-content { text-align: center; max-width: 600px; padding: 40px; }
+.about-content h1 { font-size: 48px; margin-bottom: 24px; border-bottom: 4px solid #000; display: inline-block; }
+.about-content p { font-size: 18px; line-height: 1.6; margin-bottom: 20px; }
+.placeholder-text { color: #888; font-style: italic; }
+
+/* Entrance animations */
+.about-content h1,
+.about-content p,
+.about-content .placeholder-text {
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+}
+.about-content.animate h1 {
+  animation: aboutPop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.05s forwards;
+}
+.about-content.animate p {
+  animation: aboutPop 0.55s cubic-bezier(0.34,1.56,0.64,1) 0.2s forwards;
+}
+.about-content.animate .placeholder-text {
+  animation: aboutFade 0.5s ease 0.38s forwards;
+}
+@keyframes aboutPop {
+  0%   { opacity: 0; transform: translateY(22px) scale(0.94); }
+  60%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes aboutFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* FOOT FOOTER */
+#foot-footer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding-bottom: 18px; z-index: 41; pointer-events: none;
+  gap: 0;
+}
+#foot-canvas {
+  pointer-events: all; cursor: pointer;
+  display: block;
+}
+#foot-links {
+  display: flex; gap: 20px; justify-content: center; align-items: center;
+  font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold;
+  letter-spacing: 1px; text-transform: uppercase;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 0.4s ease 0.1s, transform 0.4s cubic-bezier(0.34,1.56,0.64,1) 0.1s;
+  pointer-events: none;
+}
+#foot-links.visible {
+  opacity: 1; transform: translateY(0); pointer-events: all;
+}
+#foot-links a {
+  color: #000; text-decoration: none;
+  border: 2.5px solid #000; border-radius: 6px;
+  padding: 6px 14px; box-shadow: 3px 3px 0 #000;
+  background: #fff;
+  transition: background 0.1s, color 0.1s, box-shadow 0.1s, transform 0.1s;
+}
+#foot-links a:hover {
+  background: #000; color: #fff;
+  box-shadow: 1px 1px 0 #000; transform: translateY(2px);
+}
