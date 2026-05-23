@@ -283,7 +283,10 @@ function zoomAbout() {
     setTimeout(()=>{ btn.style.display='none'; launchTruckCanvas(); }, 300);
   }, 860);
 }
-
+function copyFromDiv() {
+  const text = document.getElementById("emailCopy").innerText;
+  navigator.clipboard.writeText(text);
+}
 function launchTruckCanvas() {
   const canvas = document.getElementById('truck-canvas');
   const ctx = canvas.getContext('2d');
@@ -291,6 +294,19 @@ function launchTruckCanvas() {
   canvas.height = window.innerHeight;
   canvas.style.display = 'block';
 
+  function copyEmail(event) {
+  event.preventDefault(); // Stops page from jumping to top
+  
+  const email = "hi@losdenso.xyz";
+  
+  navigator.clipboard.writeText(email)
+    .then(() => {
+      alert("Email copied!"); 
+    })
+    .catch(err => {
+      console.error("Copy failed", err);
+    });
+}
   // About page (hidden initially)
   const aboutPage = document.createElement('div');
   aboutPage.id = 'about-page';
@@ -305,7 +321,7 @@ function launchTruckCanvas() {
       <div id="foot-links">
         <a href="https://github.com/losdenos" target="_blank">⌥ GitHub</a>
         <a href="https://twitter.com" target="_blank">⌥ Twitter</a>
-        <a href="mailto:hi@losdenso.xyz">⌥ Email</a>
+        <a href="#" onclick="copyEmail(event)">⌥ Email</a>
       </div>
     </div>
   `;
