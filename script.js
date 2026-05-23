@@ -295,7 +295,7 @@ function launchTruckCanvas() {
   canvas.style.display = 'block';
 
   function copyEmail(event) {
-  event.preventDefault(); // Stops page from jumping to top
+  event.preventDefault(); 
   
   const email = "hi@losdenso.xyz";
   
@@ -307,25 +307,29 @@ function launchTruckCanvas() {
       console.error("Copy failed", err);
     });
 }
-  // About page (hidden initially)
-  const aboutPage = document.createElement('div');
-  aboutPage.id = 'about-page';
-  aboutPage.innerHTML = `
-    <div class="about-content">
-      <h1>ABOUT ME</h1>
-      <p>I am Densley, a creator of digital experiences.</p>
-      <div class="placeholder-text">[ your detailed bio goes here ]</div>
+
+// 2. Create the about page element
+const aboutPage = document.createElement('div');
+aboutPage.id = 'about-page';
+aboutPage.innerHTML = `
+  <div class="about-content">
+    <h1>ABOUT ME</h1>
+    <p>I am Densley, a creator of digital experiences.</p>
+    <div class="placeholder-text">[ your detailed bio goes here ]</div>
+  </div>
+  <div id="foot-footer">
+    <canvas id="foot-canvas" width="160" height="120"></canvas>
+    <div id="foot-links">
+      <a href="https://github.com/losdenos" target="_blank">⌥ GitHub</a>
+      <a href="https://twitter.com" target="_blank">⌥ Twitter</a>
+      <a href="#" id="email-copy-link">⌥ Email</a>
     </div>
-    <div id="foot-footer">
-      <canvas id="foot-canvas" width="160" height="120"></canvas>
-      <div id="foot-links">
-        <a href="https://github.com/losdenos" target="_blank">⌥ GitHub</a>
-        <a href="https://twitter.com" target="_blank">⌥ Twitter</a>
-        <a href="#" onclick="copyEmail(event)">⌥ Email</a>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(aboutPage);
+  </div>
+`;
+
+// 3. Attach the event listener directly to the new link
+aboutPage.querySelector('#email-copy-link').addEventListener('click', copyEmail);
+document.body.appendChild(aboutPage);
 
   // Truck geometry (in canvas coords)
   const W = canvas.width, H = canvas.height;
