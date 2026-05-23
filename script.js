@@ -297,15 +297,15 @@ function launchTruckCanvas() {
   aboutPage.innerHTML = `
     <div class="about-content">
       <h1>ABOUT ME</h1>
-      <p>I am LosDenso, a creator of digital experiences.</p>
+      <p>I am Densley, a creator of digital experiences.</p>
       <div class="placeholder-text">[ your detailed bio goes here ]</div>
     </div>
     <div id="foot-footer">
       <canvas id="foot-canvas" width="160" height="120"></canvas>
       <div id="foot-links">
-        <a href="https://github.com" target="_blank">⌥ GitHub</a>
+        <a href="https://github.com/losdenos" target="_blank">⌥ GitHub</a>
         <a href="https://twitter.com" target="_blank">⌥ Twitter</a>
-        <a href="mailto:you@email.com">⌥ Email</a>
+        <a href="mailto:hi@losdenso.xyz">⌥ Email</a>
       </div>
     </div>
   `;
