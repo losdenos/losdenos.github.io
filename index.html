@@ -13,14 +13,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Rajdhani:wght@500;700&display=swap" />
     <link rel="stylesheet" href="style.css" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
   </head>
   <body>
-    <!-- Scanline overlay -->
     <div class="scanlines" aria-hidden="true"></div>
-    <!-- Noise grain -->
     <div class="grain" aria-hidden="true"></div>
-    <!-- Grid background -->
     <div class="grid-bg" aria-hidden="true"></div>
 
     <main class="page-wrapper">
@@ -31,7 +28,7 @@
           <span class="blink">▮</span>
         </div>
         <h1 class="site-title">
-          <span class="title-los">Loading...</span><span class="title-denso"></span><span class="title-dot"> user.</span>
+          <span class="title-los">HEY </span><span class="title-denso">THERE</span><span class="title-dot"> user.</span>
         </h1>
         <div class="subtitle" aria-hidden="true">[ TERMINAL — SELECT MODULE ]</div>
       </header>
@@ -39,17 +36,9 @@
       <nav class="cards-grid" aria-label="Site navigation">
 
         <a href="about/" class="nav-card" data-index="01" aria-label="About me">
-          <div class="card-corner tl" aria-hidden="true"></div>
-          <div class="card-corner tr" aria-hidden="true"></div>
-          <div class="card-corner bl" aria-hidden="true"></div>
-          <div class="card-corner br" aria-hidden="true"></div>
-          <div class="card-scan" aria-hidden="true"></div>
           <div class="card-inner">
             <div class="card-index" aria-hidden="true">01</div>
-            <div class="card-icon-wrap">
-              <span class="card-icon" aria-hidden="true">🚶</span>
-              <div class="card-glow" aria-hidden="true"></div>
-            </div>
+            <span class="card-icon" aria-hidden="true">🚶</span>
             <div class="card-text">
               <span class="card-label">ABOUT ME</span>
               <span class="card-desc">identity.exe</span>
@@ -59,17 +48,9 @@
         </a>
 
         <a href="projects/" class="nav-card featured" data-index="02" aria-label="Projects">
-          <div class="card-corner tl" aria-hidden="true"></div>
-          <div class="card-corner tr" aria-hidden="true"></div>
-          <div class="card-corner bl" aria-hidden="true"></div>
-          <div class="card-corner br" aria-hidden="true"></div>
-          <div class="card-scan" aria-hidden="true"></div>
           <div class="card-inner">
             <div class="card-index" aria-hidden="true">02</div>
-            <div class="card-icon-wrap">
-              <span class="card-icon" aria-hidden="true">⚙️</span>
-              <div class="card-glow" aria-hidden="true"></div>
-            </div>
+            <span class="card-icon" aria-hidden="true">⚙️</span>
             <div class="card-text">
               <span class="card-label">PROJECTS</span>
               <span class="card-desc">builds.log</span>
@@ -79,17 +60,9 @@
         </a>
 
         <a href="shop/" class="nav-card" data-index="03" aria-label="Shop">
-          <div class="card-corner tl" aria-hidden="true"></div>
-          <div class="card-corner tr" aria-hidden="true"></div>
-          <div class="card-corner bl" aria-hidden="true"></div>
-          <div class="card-corner br" aria-hidden="true"></div>
-          <div class="card-scan" aria-hidden="true"></div>
           <div class="card-inner">
             <div class="card-index" aria-hidden="true">03</div>
-            <div class="card-icon-wrap">
-              <span class="card-icon" aria-hidden="true">🛒</span>
-              <div class="card-glow" aria-hidden="true"></div>
-            </div>
+            <span class="card-icon" aria-hidden="true">🛒</span>
             <div class="card-text">
               <span class="card-label">SHOP</span>
               <span class="card-desc">store.dat</span>
@@ -109,18 +82,14 @@
     </main>
 
     <script>
-      // Uptime counter
       const start = Date.now();
-      function updateUptime() {
+      const uptimeEl = document.getElementById('uptime');
+      setInterval(() => {
         const s = Math.floor((Date.now() - start) / 1000);
-        const h = String(Math.floor(s / 3600)).padStart(2, '0');
-        const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-        const sec = String(s % 60).padStart(2, '0');
-        document.getElementById('uptime').textContent = `${h}:${m}:${sec}`;
-      }
-      setInterval(updateUptime, 1000);
+        const pad = n => String(n).padStart(2, '0');
+        uptimeEl.textContent = `${pad(s / 3600 | 0)}:${pad(s % 3600 / 60 | 0)}:${pad(s % 60)}`;
+      }, 1000);
 
-      // Card glitch effect on hover
       document.querySelectorAll('.nav-card').forEach(card => {
         card.addEventListener('mouseenter', () => {
           card.classList.add('glitching');
@@ -128,28 +97,25 @@
         });
       });
 
-      // Random glitch on title
-      const title = document.querySelector('.site-title');
+      const losEl = document.querySelector('.title-los');
+      const densoEl = document.querySelector('.title-denso');
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%';
-      const original = 'HEY THERE';
+      const rand = () => chars[Math.random() * chars.length | 0];
+      const scramble = str => str.split('').map(c => c === ' ' ? ' ' : rand()).join('');
+
       function glitchTitle() {
         let count = 0;
-        const interval = setInterval(() => {
-          const los = document.querySelector('.title-los');
-          const denso = document.querySelector('.title-denso');
-          if (count < 6) {
-            const scramble = t => t.split('').map(c => c === ' ' ? ' ' : chars[Math.floor(Math.random() * chars.length)]).join('');
-            los.textContent = scramble('HEY ');
-            denso.textContent = scramble('THERE');
+        const iv = setInterval(() => {
+          if (count++ < 6) {
+            losEl.textContent = scramble('HEY ');
+            densoEl.textContent = scramble('THERE');
           } else {
-            los.textContent = 'HEY ';
-            denso.textContent = 'THERE';
-            clearInterval(interval);
+            losEl.textContent = 'HEY ';
+            densoEl.textContent = 'THERE';
+            clearInterval(iv);
           }
-          count++;
         }, 60);
       }
-      // Glitch on load then periodically
       setTimeout(glitchTitle, 800);
       setInterval(glitchTitle, 7000);
     </script>
