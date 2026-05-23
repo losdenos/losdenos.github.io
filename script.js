@@ -330,7 +330,7 @@ function playNavClick() {
   } catch(e) {}
 }
 // ── TYPING ──
-const TARGET='Welcome to LosDenso';
+const TARGET='Welcome to Los Denso';
 let skipTyping = false;
 function flashKey(ch, isSpace=false, isEnter=false){
   const k=document.querySelector(`#keyboard-wrap .key[data-char="${ch.toLowerCase()}"]`)
@@ -435,20 +435,20 @@ function launchTruckCanvas(page='about') {
     about: `
       <div class="about-content">
         <h1>ABOUT ME</h1>
-        <p>I am LosDenso, a creator of digital experiences.</p>
-        <div class="placeholder-text">[ your detailed bio goes here ]</div>
+        <p>I am Densley, an aspiring Linux System Administrator based in Malaysia.</p>
+        <div class="placeholder-text">[ More details soon. ]</div>
       </div>`,
     projects: `
       <div class="about-content">
         <h1>PROJECTS</h1>
         <p>A collection of things I have built and shipped.</p>
-        <div class="placeholder-text">[ your projects go here ]</div>
+        <div class="placeholder-text">[ in progress ]</div>
       </div>`,
     contact: `
       <div class="about-content">
         <h1>CONTACT</h1>
         <p>Let's build something together.</p>
-        <div class="placeholder-text">[ your contact details go here ]</div>
+        <div class="placeholder-text">[ mail me: hi@losdenso.xyz ]</div>
       </div>`,
   };
 
