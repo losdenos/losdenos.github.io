@@ -283,10 +283,7 @@ function zoomAbout() {
     setTimeout(()=>{ btn.style.display='none'; launchTruckCanvas(); }, 300);
   }, 860);
 }
-function copyFromDiv() {
-  const text = document.getElementById("emailCopy").innerText;
-  navigator.clipboard.writeText(text);
-}
+
 function launchTruckCanvas() {
   const canvas = document.getElementById('truck-canvas');
   const ctx = canvas.getContext('2d');
@@ -294,24 +291,58 @@ function launchTruckCanvas() {
   canvas.height = window.innerHeight;
   canvas.style.display = 'block';
 
+  // About page (hidden initially)
   const aboutPage = document.createElement('div');
   aboutPage.id = 'about-page';
   aboutPage.innerHTML = `
     <div class="about-content">
       <h1>ABOUT ME</h1>
-      <p>I am Densley, a creator of digital experiences.</p>
+      <p>I am LosDenso, a creator of digital experiences.</p>
       <div class="placeholder-text">[ your detailed bio goes here ]</div>
     </div>
     <div id="foot-footer">
       <canvas id="foot-canvas" width="160" height="120"></canvas>
       <div id="foot-links">
-        <a href="https://github.com/losdenos" target="_blank">⌥ GitHub</a>
+        <a href="https://github.com" target="_blank">⌥ GitHub</a>
         <a href="https://twitter.com" target="_blank">⌥ Twitter</a>
-        <a href="#" onclick="copyEmail(event)">⌥ Email</a>
+        <div id="email-link">⌥ Email</div>
       </div>
     </div>
   `;
   document.body.appendChild(aboutPage);
+
+  // Copy email to clipboard on click
+  const emailLink = document.getElementById('email-link');
+  if(emailLink) {
+    emailLink.style.cursor = 'pointer';
+    emailLink.addEventListener('click', () => {
+      const text = 'hi@losdenso.xyz';
+      try {
+        const el = document.createElement('textarea');
+        el.value = text;
+        el.style.position = 'fixed';
+        el.style.opacity = '0';
+        document.body.appendChild(el);
+        el.focus(); el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        const orig = emailLink.textContent;
+        emailLink.textContent = '✓ Copied!';
+        emailLink.style.background = '#000';
+        emailLink.style.color = '#fff';
+        setTimeout(() => {
+          emailLink.textContent = orig;
+          emailLink.style.background = '';
+          emailLink.style.color = '';
+        }, 1800);
+      } catch(err) {
+        navigator.clipboard && navigator.clipboard.writeText(text).then(() => {
+          emailLink.textContent = '✓ Copied!';
+          setTimeout(() => { emailLink.textContent = '⌥ Email'; }, 1800);
+        });
+      }
+    });
+  }
 
   // Truck geometry (in canvas coords)
   const W = canvas.width, H = canvas.height;
