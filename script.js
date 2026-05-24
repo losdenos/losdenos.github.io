@@ -1,51 +1,3 @@
-// ── CRACK LOADER ──
-const crackCanvas = document.getElementById('crack-canvas');
-const crackCtx = crackCanvas.getContext('2d');
-function resizeCrack(){ crackCanvas.width=window.innerWidth; crackCanvas.height=window.innerHeight; }
-resizeCrack();
-window.addEventListener('resize', resizeCrack);
-
-const crackStages=[
-  [[.5,.5,.48,.44],[.5,.5,.52,.44],[.5,.5,.48,.56],[.5,.5,.52,.56]],
-  [[.5,.5,.42,.35],[.5,.5,.58,.35],[.5,.5,.42,.65],[.5,.5,.58,.65],[.5,.5,.35,.5],[.5,.5,.65,.5]],
-  [[.5,.5,.28,.18],[.5,.5,.72,.18],[.5,.5,.28,.82],[.5,.5,.72,.82],[.5,.5,.15,.5],[.5,.5,.85,.5],[.5,.5,.5,.1],[.5,.5,.5,.9]],
-  [[.28,.18,.12,.08],[.28,.18,.18,.35],[.72,.18,.88,.08],[.72,.18,.82,.35],[.28,.82,.12,.92],[.28,.82,.18,.65],[.72,.82,.88,.92],[.72,.82,.82,.65],[.15,.5,.05,.3],[.15,.5,.05,.7],[.85,.5,.95,.3],[.85,.5,.95,.7]],
-  [[.12,.08,0,0],[.88,.08,1,0],[.12,.92,0,1],[.88,.92,1,1],[.18,.35,.05,.45],[.82,.35,.95,.45],[.18,.65,.05,.55],[.82,.65,.95,.55],[.5,.1,.3,0],[.5,.1,.7,0],[.5,.9,.3,1],[.5,.9,.7,1]],
-  [[.42,.35,.35,.25],[.58,.35,.65,.25],[.42,.65,.35,.75],[.58,.65,.65,.75],[.35,.5,.2,.38],[.65,.5,.8,.38],[.35,.5,.2,.62],[.65,.5,.8,.62],[.3,.18,.22,.06],[.7,.18,.78,.06],[.3,.82,.22,.94],[.7,.82,.78,.94]],
-  [[.2,.38,.08,.28],[.8,.38,.92,.28],[.2,.62,.08,.72],[.8,.62,.92,.72],[.22,.06,.1,0],[.78,.06,.9,0],[.22,.94,.1,1],[.78,.94,.9,1],[.35,.25,.25,.12],[.65,.25,.75,.12],[.35,.75,.25,.88],[.65,.75,.75,.88]],
-];
-let cStage=0, cLines=[], cProg=[], cTimer=0;
-function cAddStage(s){ if(s>=crackStages.length)return; crackStages[s].forEach(l=>{cLines.push(l);cProg.push(0);}); }
-function cStageOf(i){ let c=0; for(let s=0;s<crackStages.length;s++){c+=crackStages[s].length;if(i<c)return s;} return crackStages.length-1; }
-function drawCracks(){
-  const w=crackCanvas.width,h=crackCanvas.height;
-  crackCtx.clearRect(0,0,w,h);
-  for(let i=0;i<cLines.length;i++){
-    const[x1p,y1p,x2p,y2p]=cLines[i],p=Math.min(cProg[i],1);
-    crackCtx.beginPath();
-    crackCtx.moveTo(x1p*w,y1p*h);
-    crackCtx.lineTo((x1p+(x2p-x1p)*p)*w,(y1p+(y2p-y1p)*p)*h);
-    crackCtx.lineWidth=Math.max(1,3.5-cStageOf(i)*.45);
-    crackCtx.strokeStyle='#000'; crackCtx.lineCap='round'; crackCtx.stroke();
-  }
-}
-cAddStage(0);
-function crackLoop(){
-  cTimer++;
-  cProg=cProg.map(p=>p+.12+Math.random()*.06);
-  if(cTimer>=14){cTimer=0;cStage++;cAddStage(cStage);}
-  drawCracks();
-  if(cStage<crackStages.length-1||cProg.some(p=>p<1)) requestAnimationFrame(crackLoop);
-  else setTimeout(finishLoad,500);
-}
-crackLoop();
-function finishLoad(){
-  const loader=document.getElementById('loader');
-  crackCanvas.style.transition=`opacity ${TIMING.loaderFadeOut}ms`; crackCanvas.style.opacity='0';
-  loader.style.transition=`opacity ${TIMING.loaderFadeOut}ms`; loader.style.opacity='0';
-  setTimeout(()=>{crackCanvas.style.display='none';loader.style.display='none';showScene();}, TIMING.loaderHideDelay);
-}
-
 // ── TIMING CONSTANTS ──
 // Central place for all animation/transition durations (ms) and counts.
 // Tweak here rather than hunting through the code.
@@ -106,6 +58,66 @@ const TIMING = {
   copiedResetDelay:     1800,  // ms "✓ Copied!" stays before reverting
   copiedAddressDelay:   3000,  // ms raw address stays if clipboard unavailable
 };
+
+// ── OWNER EMAIL ──
+// Single source of truth — used by the copy button and the contact page content.
+const OWNER_EMAIL = 'hi@losdenso.xyz';
+
+// ── UTILITY: DEBOUNCE ──
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+// ── CRACK LOADER ──
+const crackCanvas = document.getElementById('crack-canvas');
+const crackCtx = crackCanvas.getContext('2d');
+let crackDone = false; // prevents resize from clearing canvas mid-animation
+function resizeCrack(){ crackCanvas.width=window.innerWidth; crackCanvas.height=window.innerHeight; }
+resizeCrack();
+window.addEventListener('resize', debounce(() => { if(crackDone) resizeCrack(); }, 120));
+
+const crackStages=[
+  [[.5,.5,.48,.44],[.5,.5,.52,.44],[.5,.5,.48,.56],[.5,.5,.52,.56]],
+  [[.5,.5,.42,.35],[.5,.5,.58,.35],[.5,.5,.42,.65],[.5,.5,.58,.65],[.5,.5,.35,.5],[.5,.5,.65,.5]],
+  [[.5,.5,.28,.18],[.5,.5,.72,.18],[.5,.5,.28,.82],[.5,.5,.72,.82],[.5,.5,.15,.5],[.5,.5,.85,.5],[.5,.5,.5,.1],[.5,.5,.5,.9]],
+  [[.28,.18,.12,.08],[.28,.18,.18,.35],[.72,.18,.88,.08],[.72,.18,.82,.35],[.28,.82,.12,.92],[.28,.82,.18,.65],[.72,.82,.88,.92],[.72,.82,.82,.65],[.15,.5,.05,.3],[.15,.5,.05,.7],[.85,.5,.95,.3],[.85,.5,.95,.7]],
+  [[.12,.08,0,0],[.88,.08,1,0],[.12,.92,0,1],[.88,.92,1,1],[.18,.35,.05,.45],[.82,.35,.95,.45],[.18,.65,.05,.55],[.82,.65,.95,.55],[.5,.1,.3,0],[.5,.1,.7,0],[.5,.9,.3,1],[.5,.9,.7,1]],
+  [[.42,.35,.35,.25],[.58,.35,.65,.25],[.42,.65,.35,.75],[.58,.65,.65,.75],[.35,.5,.2,.38],[.65,.5,.8,.38],[.35,.5,.2,.62],[.65,.5,.8,.62],[.3,.18,.22,.06],[.7,.18,.78,.06],[.3,.82,.22,.94],[.7,.82,.78,.94]],
+  [[.2,.38,.08,.28],[.8,.38,.92,.28],[.2,.62,.08,.72],[.8,.62,.92,.72],[.22,.06,.1,0],[.78,.06,.9,0],[.22,.94,.1,1],[.78,.94,.9,1],[.35,.25,.25,.12],[.65,.25,.75,.12],[.35,.75,.25,.88],[.65,.75,.75,.88]],
+];
+let cStage=0, cLines=[], cProg=[], cTimer=0;
+function cAddStage(s){ if(s>=crackStages.length)return; crackStages[s].forEach(l=>{cLines.push(l);cProg.push(0);}); }
+function cStageOf(i){ let c=0; for(let s=0;s<crackStages.length;s++){c+=crackStages[s].length;if(i<c)return s;} return crackStages.length-1; }
+function drawCracks(){
+  const w=crackCanvas.width,h=crackCanvas.height;
+  crackCtx.clearRect(0,0,w,h);
+  for(let i=0;i<cLines.length;i++){
+    const[x1p,y1p,x2p,y2p]=cLines[i],p=Math.min(cProg[i],1);
+    crackCtx.beginPath();
+    crackCtx.moveTo(x1p*w,y1p*h);
+    crackCtx.lineTo((x1p+(x2p-x1p)*p)*w,(y1p+(y2p-y1p)*p)*h);
+    crackCtx.lineWidth=Math.max(1,3.5-cStageOf(i)*.45);
+    crackCtx.strokeStyle='#000'; crackCtx.lineCap='round'; crackCtx.stroke();
+  }
+}
+cAddStage(0);
+function crackLoop(){
+  cTimer++;
+  cProg=cProg.map(p=>p+.12+Math.random()*.06);
+  if(cTimer>=14){cTimer=0;cStage++;cAddStage(cStage);}
+  drawCracks();
+  if(cStage<crackStages.length-1||cProg.some(p=>p<1)) requestAnimationFrame(crackLoop);
+  else setTimeout(finishLoad,500);
+}
+crackLoop();
+function finishLoad(){
+  crackDone = true;
+  const loader=document.getElementById('loader');
+  crackCanvas.style.transition=`opacity ${TIMING.loaderFadeOut}ms`; crackCanvas.style.opacity='0';
+  loader.style.transition=`opacity ${TIMING.loaderFadeOut}ms`; loader.style.opacity='0';
+  setTimeout(()=>{crackCanvas.style.display='none';loader.style.display='none';showScene();}, TIMING.loaderHideDelay);
+}
 
 // ── KEYBOARD ──
 function playStartupChime() {
@@ -184,6 +196,44 @@ function playStartupChime() {
   } catch(e) {}
 }
 
+// Subtle whoosh sound effect for truck movement
+function playWhoosh(duration = 0.4, startFreq = 800, endFreq = 200) {
+  try {
+    const ac = getAudioCtx();
+    const t = ac.currentTime;
+    
+    // Create a high-pass filtered noise burst for whoosh
+    const noiseBuffer = ac.createBuffer(1, ac.sampleRate * duration, ac.sampleRate);
+    const noiseData = noiseBuffer.getChannelData(0);
+    for(let i = 0; i < noiseBuffer.length; i++) {
+      noiseData[i] = Math.random() * 2 - 1;
+    }
+    
+    const noiseSource = ac.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+    
+    // High-pass filter for crisp whoosh
+    const filter = ac.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(startFreq, t);
+    filter.frequency.exponentialRampToValueAtTime(endFreq, t + duration);
+    filter.Q.value = 2;
+    
+    // Gain envelope: quick attack, smooth decay
+    const gain = ac.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.12, t + 0.05);  // quick attack
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    
+    noiseSource.connect(filter);
+    filter.connect(gain);
+    gain.connect(ac.destination);
+    
+    noiseSource.start(t);
+    noiseSource.stop(t + duration);
+  } catch(e) {}
+}
+
 function scaleKeyboard() {
   const kb = document.getElementById('keyboard-wrap');
   if(!kb) return;
@@ -200,7 +250,7 @@ function showScene(){
   const scene=document.getElementById('scene');
   scene.classList.add('visible');
   scaleKeyboard();
-  window.addEventListener('resize', scaleKeyboard);
+  window.addEventListener('resize', debounce(scaleKeyboard, 120));
   initFoot();
   // Footer hidden until nav is ready
   const _ffi = document.getElementById('foot-footer');
@@ -210,7 +260,7 @@ function showScene(){
   if(emailLink) {
     emailLink.style.cursor = 'pointer';
     emailLink.addEventListener('click', () => {
-      const EMAIL = 'hi@losdenso.xyz';
+      const EMAIL = OWNER_EMAIL;
       const orig = emailLink.textContent;
       const showCopied = () => {
         emailLink.textContent = '✓ Copied!';
@@ -431,6 +481,12 @@ function morphToNav(){
     nav.classList.add('visible');
     document.querySelectorAll('.nav-btn').forEach((btn,i)=>{
       btn.style.setProperty('--r',((Math.random()-.5)*30)+'deg');
+      // Keyboard accessibility
+      btn.setAttribute('role', 'button');
+      btn.setAttribute('tabindex', '0');
+      btn.addEventListener('keydown', e => {
+        if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+      });
       setTimeout(()=>btn.classList.add('appeared'), i*TIMING.navBtnStagger + TIMING.navBtnStaggerOffset);
     });
     setTimeout(playStartupChime, TIMING.chimeDelay);
@@ -454,6 +510,88 @@ function bindNav(){
     if(_navHandlers[id]) el.removeEventListener('click', _navHandlers[id]);
     _navHandlers[id] = _navHandler(page);
     el.addEventListener('click', _navHandlers[id]);
+  });
+}
+
+// ── SHARED TRUCK HELPERS ──
+// Used by both launchTruckCanvas (forward) and launchReverseTruck (back).
+
+function truckEaseInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+function truckEaseOutCubic(t)   { return 1 - Math.pow(1-t, 3); }
+function truckEaseInQuart(t)    { return t*t*t*t; }
+
+// Rope physics — creates a verlet chain of `segs` segments between two pinned endpoints.
+const TRUCK_ROPE_SEGS = 12;
+function truckInitRope(ax, ay, bx, by) {
+  const pts = [];
+  for(let i = 0; i <= TRUCK_ROPE_SEGS; i++) {
+    const t = i / TRUCK_ROPE_SEGS;
+    pts.push({ x:ax+(bx-ax)*t, y:ay+(by-ay)*t, px:ax+(bx-ax)*t, py:ay+(by-ay)*t, pinned:(i===0||i===TRUCK_ROPE_SEGS) });
+  }
+  return pts;
+}
+function truckUpdateRope(pts, ax, ay, bx, by) {
+  // Target segment length = straight-line distance between anchors / number of segments.
+  // This keeps the rope taut (not drooping excessively) regardless of viewport size.
+  const totalDist = Math.sqrt((bx-ax)*(bx-ax)+(by-ay)*(by-ay));
+  const targetLen = totalDist / TRUCK_ROPE_SEGS;
+  pts[0].x = ax; pts[0].y = ay;
+  pts[TRUCK_ROPE_SEGS].x = bx; pts[TRUCK_ROPE_SEGS].y = by;
+  for(let iter = 0; iter < 4; iter++) {
+    for(let i = 0; i < TRUCK_ROPE_SEGS; i++) {
+      const a = pts[i], b = pts[i+1];
+      const dx = b.x-a.x, dy = b.y-a.y;
+      const dist = Math.sqrt(dx*dx+dy*dy)||1;
+      const diff = (dist-targetLen)/dist*0.5;
+      if(!a.pinned){a.x+=dx*diff;a.y+=dy*diff;}
+      if(!b.pinned){b.x-=dx*diff;b.y-=dy*diff;}
+    }
+  }
+  for(let i = 1; i < TRUCK_ROPE_SEGS; i++) {
+    const p = pts[i];
+    const vx = p.x-p.px, vy = p.y-p.py;
+    p.px=p.x; p.py=p.y;
+    p.x+=vx*0.85; p.y+=vy*0.85+0.25; // gravity
+  }
+  pts[0].x=ax; pts[0].y=ay;
+  pts[TRUCK_ROPE_SEGS].x=bx; pts[TRUCK_ROPE_SEGS].y=by;
+}
+function truckDrawRope(ctx, pts) {
+  if(pts.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle='#000'; ctx.lineWidth=2.5; ctx.lineCap='round';
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for(let i = 1; i <= TRUCK_ROPE_SEGS; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Dust particles — spawnFn returns a new particle; direction controlled by caller.
+function truckSpawnDust(particles, x, y, speed, dirX) {
+  for(let i = 0; i < 3; i++) {
+    particles.push({
+      x, y: y + (Math.random()-0.5)*6,
+      vx: dirX * (1.5+Math.random()*2) * speed,
+      vy: -(0.5+Math.random()*1.5),
+      life: 1, decay: 0.025+Math.random()*0.02,
+      r: 4+Math.random()*8
+    });
+  }
+}
+function truckUpdateParticles(particles) {
+  for(let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.06;
+    p.life-=p.decay; p.r*=0.97;
+    if(p.life <= 0) particles.splice(i, 1);
+  }
+}
+function truckDrawParticles(ctx, particles) {
+  particles.forEach(p => {
+    ctx.save(); ctx.globalAlpha=p.life*0.4; ctx.fillStyle='#888';
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); ctx.restore();
   });
 }
 
@@ -489,6 +627,13 @@ function launchTruckCanvas(page='about') {
   const _ff = document.getElementById('foot-footer');
   if(_ff) { _ff.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`; _ff.style.opacity='0'; setTimeout(()=>{ _ff.style.display='none'; }, TIMING.footerFadeOutDuration); }
 
+  // Resize canvas if orientation changes mid-animation
+  const onResize = debounce(() => {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }, 150);
+  window.addEventListener('resize', onResize);
+
   // Page content per section
   const pageContent = {
     about: `
@@ -507,7 +652,7 @@ function launchTruckCanvas(page='about') {
       <div class="about-content">
         <h1>CONTACT</h1>
         <p>Let's build something together.</p>
-        <div class="placeholder-text">[ mail me: hi@losdenso.xyz ]</div>
+        <div class="placeholder-text">[ mail me: ${OWNER_EMAIL} ]</div>
       </div>`,
   };
 
@@ -523,20 +668,10 @@ function launchTruckCanvas(page='about') {
   const truckW = 200, truckH = 80;
   const startX = W/2 - truckW/2;
   const targetX = W + 60; // drive off right
+  const ropeTargetLen = W / 22; // scales with viewport width
 
   // Particles system
   const particles = [];
-  function spawnDust(x, y, speed) {
-    for(let i=0;i<3;i++) {
-      particles.push({
-        x, y: y + (Math.random()-0.5)*6,
-        vx: -(1.5+Math.random()*2) * speed,
-        vy: -(0.5+Math.random()*1.5),
-        life: 1, decay: 0.025+Math.random()*0.02,
-        r: 4+Math.random()*8
-      });
-    }
-  }
 
   // Screen shake state
   let shakeX=0, shakeY=0, shakeDecay=0;
@@ -547,37 +682,9 @@ function launchTruckCanvas(page='about') {
   }
 
   // Rope physics points (simple verlet chain)
-  const ROPE_SEGS = 12;
-  let ropePoints = [];
-  function initRope(ax,ay,bx,by) {
-    ropePoints = [];
-    for(let i=0;i<=ROPE_SEGS;i++) {
-      const t=i/ROPE_SEGS;
-      ropePoints.push({ x:ax+(bx-ax)*t, y:ay+(by-ay)*t, px:ax+(bx-ax)*t, py:ay+(by-ay)*t, pinned:(i===0||i===ROPE_SEGS) });
-    }
-  }
-  function updateRope(ax,ay,bx,by) {
-    ropePoints[0].x=ax; ropePoints[0].y=ay;
-    ropePoints[ROPE_SEGS].x=bx; ropePoints[ROPE_SEGS].y=by;
-    for(let iter=0;iter<4;iter++) {
-      for(let i=0;i<ROPE_SEGS;i++) {
-        const a=ropePoints[i], b=ropePoints[i+1];
-        const dx=b.x-a.x, dy=b.y-a.y;
-        const dist=Math.sqrt(dx*dx+dy*dy)||1;
-        const targetLen=20, diff=(dist-targetLen)/dist*0.5;
-        if(!a.pinned){a.x+=dx*diff;a.y+=dy*diff;}
-        if(!b.pinned){b.x-=dx*diff;b.y-=dy*diff;}
-      }
-    }
-    for(let i=1;i<ROPE_SEGS;i++) {
-      const p=ropePoints[i];
-      const vx=p.x-p.px, vy=p.y-p.py;
-      p.px=p.x; p.py=p.y;
-      p.x+=vx*0.85; p.y+=vy*0.85+0.25; // gravity
-    }
-    ropePoints[0].x=ax; ropePoints[0].y=ay;
-    ropePoints[ROPE_SEGS].x=bx; ropePoints[ROPE_SEGS].y=by;
-  }
+  const ropeStartX = startX; // left edge of trailer
+  const ropeStartY = groundY - truckH + 40;
+  let ropePoints = truckInitRope(ropeStartX, ropeStartY, 0, ropeStartY);
 
   // Draw the canvas-drawn truck
   let wheelAngle = 0;
@@ -677,30 +784,6 @@ function launchTruckCanvas(page='about') {
     ctx.restore();
   }
 
-  function drawRope() {
-    if(ropePoints.length<2) return;
-    ctx.save();
-    ctx.strokeStyle='#000'; ctx.lineWidth=2.5; ctx.lineCap='round';
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(ropePoints[0].x, ropePoints[0].y);
-    for(let i=1;i<=ROPE_SEGS;i++){
-      ctx.lineTo(ropePoints[i].x, ropePoints[i].y);
-    }
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawParticles() {
-    particles.forEach(p=>{
-      ctx.save();
-      ctx.globalAlpha=p.life*0.4;
-      ctx.fillStyle='#888';
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
-      ctx.restore();
-    });
-  }
-
   // Animation state
   const duration = 2200;
   let startTime = null;
@@ -708,14 +791,6 @@ function launchTruckCanvas(page='about') {
   let revDuration = 600;
   let revStart = null;
   let hasShaken = false;
-
-  // Rope anchor points
-  const ropeStartX = startX; // left edge of trailer
-  const ropeStartY = groundY - truckH + 40;
-  initRope(ropeStartX, ropeStartY, 0, ropeStartY);
-
-  function easeInOutCubic(t){ return t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2; }
-  function easeInQuart(t){ return t*t*t*t; }
 
   let truckX = startX;
 
@@ -739,17 +814,20 @@ function launchTruckCanvas(page='about') {
 
     if(phase==='rev') {
       // Rev: small backward lurch before driving
-      if(!revStart) revStart=ts;
+      if(!revStart) {
+        revStart=ts;
+        playWhoosh(0.35, 600, 180);  // Play whoosh during rev
+      }
       const rp=Math.min((ts-revStart)/revDuration,1);
       const lurch = Math.sin(rp*Math.PI)*8;
       truckX = startX - lurch;
       speed = lurch*0.2;
 
-      if(rp>=1){ phase='drive'; startTime=ts; triggerShake(12); }
+      if(rp>=1){ phase='drive'; startTime=ts; triggerShake(12); playWhoosh(0.5, 900, 250); }  // Whoosh as truck launches
     } else {
       // Drive phase
       const p = Math.min(elapsed/duration,1);
-      const ease = easeInOutCubic(p);
+      const ease = truckEaseInOutCubic(p);
       truckX = startX + (targetX-startX)*ease;
       speed = (targetX-startX)/duration * 60;
 
@@ -762,10 +840,11 @@ function launchTruckCanvas(page='about') {
 
       // Spawn dust under rear wheels
       if(p<0.95 && Math.random()<0.4) {
-        spawnDust(truckX+22, groundY+12, Math.min(p*3+0.5,2));
+        truckSpawnDust(particles, truckX+22, groundY+12, Math.min(p*3+0.5,2), -1);
       }
 
       if(p>=1) {
+        window.removeEventListener('resize', onResize);
         aboutPage.style.clipPath='none';
         canvas.style.display='none';
         document.getElementById('scene').style.display='none';
@@ -783,19 +862,14 @@ function launchTruckCanvas(page='about') {
     }
 
     // Update particles
-    for(let i=particles.length-1;i>=0;i--){
-      const p2=particles[i];
-      p2.x+=p2.vx; p2.y+=p2.vy; p2.vy+=0.06;
-      p2.life-=p2.decay; p2.r*=0.97;
-      if(p2.life<=0) particles.splice(i,1);
-    }
+    truckUpdateParticles(particles);
 
     // Rope: from left edge of page to rear of trailer
     const ropePageX = Math.max(0, truckX - 60);
     const ropePageY = groundY - 30;
     const ropeTruckX = truckX + 2;
     const ropeTruckY = groundY - truckH + 38;
-    updateRope(ropeTruckX, ropeTruckY, ropePageX, ropePageY);
+    truckUpdateRope(ropePoints, ropeTruckX, ropeTruckY, ropePageX, ropePageY, ropeTargetLen);
 
     // Vertical edge line: the leading edge of the about page, connected to the rope
     if(ropePageX > 0) {
@@ -814,8 +888,8 @@ function launchTruckCanvas(page='about') {
       ctx.restore();
     }
 
-    drawParticles();
-    drawRope();
+    truckDrawParticles(ctx, particles);
+    truckDrawRope(ctx, ropePoints);
     drawTruck(truckX, groundY-truckH, speed);
 
     ctx.restore();
@@ -837,10 +911,18 @@ function launchReverseTruck(pageEl, onComplete) {
   canvas.height = window.innerHeight;
   canvas.style.display = 'block';
 
+  // Resize canvas if orientation changes mid-animation
+  const onResize = debounce(() => {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }, 150);
+  window.addEventListener('resize', onResize);
+
   const W = canvas.width, H = canvas.height;
   const duration   = TIMING.truckReverseDuration;
   const truckW     = 200, truckH = 80;
   const groundY    = H / 2 + 70;
+  const ropeTargetLen = W / 22; // scales with viewport width
   // Truck enters from right edge, parks at centre-right, then drags page off
   const enterX     = W + truckW;         // start off-screen right
   const parkedX    = W / 2 + 40;        // where it stops briefly before pulling
@@ -854,57 +936,12 @@ function launchReverseTruck(pageEl, onComplete) {
   let truckX       = enterX;
   let shakeX = 0, shakeY = 0, shakeDecay = 0;
   const particles  = [];
-
+  let hasPlayedEnterWhoosh = false;
+  let hasPlayedPullWhoosh = false;
   function triggerShake(mag) { shakeDecay = mag; }
-  function spawnDust(x, y, speed) {
-    for(let i = 0; i < 3; i++) {
-      particles.push({
-        x, y: y + (Math.random() - 0.5) * 6,
-        vx: (1.5 + Math.random() * 2) * speed,  // dust blows right (truck moving right)
-        vy: -(0.5 + Math.random() * 1.5),
-        life: 1, decay: 0.025 + Math.random() * 0.02,
-        r: 4 + Math.random() * 8
-      });
-    }
-  }
-
-  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-  function easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
 
   // Rope: from right edge of page to front of truck cab
-  const ROPE_SEGS = 12;
-  let ropePoints  = [];
-  function initRope(ax,ay,bx,by) {
-    ropePoints = [];
-    for(let i = 0; i <= ROPE_SEGS; i++) {
-      const t = i / ROPE_SEGS;
-      ropePoints.push({ x:ax+(bx-ax)*t, y:ay+(by-ay)*t, px:ax+(bx-ax)*t, py:ay+(by-ay)*t, pinned:(i===0||i===ROPE_SEGS) });
-    }
-  }
-  function updateRope(ax,ay,bx,by) {
-    ropePoints[0].x = ax; ropePoints[0].y = ay;
-    ropePoints[ROPE_SEGS].x = bx; ropePoints[ROPE_SEGS].y = by;
-    for(let iter = 0; iter < 4; iter++) {
-      for(let i = 0; i < ROPE_SEGS; i++) {
-        const a = ropePoints[i], b = ropePoints[i+1];
-        const dx = b.x-a.x, dy = b.y-a.y;
-        const dist = Math.sqrt(dx*dx+dy*dy)||1;
-        const targetLen = 20, diff = (dist-targetLen)/dist*0.5;
-        if(!a.pinned){a.x+=dx*diff;a.y+=dy*diff;}
-        if(!b.pinned){b.x-=dx*diff;b.y-=dy*diff;}
-      }
-    }
-    for(let i = 1; i < ROPE_SEGS; i++) {
-      const p = ropePoints[i];
-      const vx = p.x-p.px, vy = p.y-p.py;
-      p.px=p.x; p.py=p.y;
-      p.x+=vx*0.85; p.y+=vy*0.85+0.25;
-    }
-    ropePoints[0].x=ax; ropePoints[0].y=ay;
-    ropePoints[ROPE_SEGS].x=bx; ropePoints[ROPE_SEGS].y=by;
-  }
-  // Rope anchors: truck front hooks into right edge of page
-  initRope(enterX, groundY - truckH + 38, W, groundY - 30);
+  let ropePoints = truckInitRope(enterX, groundY - truckH + 38, W, groundY - 30);
 
   function drawTruck(x, y, speed) {
     const tw=truckW, th=truckH;
@@ -981,24 +1018,6 @@ function launchReverseTruck(pageEl, onComplete) {
     ctx.restore();
   }
 
-  function drawRope() {
-    if(ropePoints.length < 2) return;
-    ctx.save();
-    ctx.strokeStyle='#000'; ctx.lineWidth=2.5; ctx.lineCap='round';
-    ctx.beginPath();
-    ctx.moveTo(ropePoints[0].x, ropePoints[0].y);
-    for(let i=1;i<=ROPE_SEGS;i++) ctx.lineTo(ropePoints[i].x, ropePoints[i].y);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawParticles() {
-    particles.forEach(p=>{
-      ctx.save(); ctx.globalAlpha=p.life*0.4; ctx.fillStyle='#888';
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); ctx.restore();
-    });
-  }
-
   let hasShaken = false;
 
   function frame(ts) {
@@ -1022,10 +1041,11 @@ function launchReverseTruck(pageEl, onComplete) {
       const elapsed = ts - startTime;
       const enterDuration = duration * 0.38;
       const p = Math.min(elapsed / enterDuration, 1);
-      const ease = easeOutCubic(p);
+      const ease = truckEaseOutCubic(p);
       truckX = enterX + (parkedX - enterX) * ease;
       speed  = Math.abs((parkedX - enterX) / enterDuration * 60 * (1 - ease));
 
+      if(!hasPlayedEnterWhoosh) { hasPlayedEnterWhoosh=true; playWhoosh(0.45, 950, 300); }
       if(!hasShaken && p > 0.92) { hasShaken=true; triggerShake(10); }
 
       if(p >= 1) {
@@ -1038,13 +1058,13 @@ function launchReverseTruck(pageEl, onComplete) {
     else if(phase === 'pause') {
       truckX = parkedX;
       speed  = 0;
-      if(ts - pauseStart >= pauseMs) { phase = 'pull'; startTime = ts; }
+      if(ts - pauseStart >= pauseMs) { phase = 'pull'; startTime = ts; playWhoosh(0.6, 850, 200); }
     }
     else if(phase === 'pull') {
       // Truck and page both slide off right
       const elapsed = ts - startTime;
       const p = Math.min(elapsed / (duration * 0.62), 1);
-      const ease = easeInOutCubic(p);
+      const ease = truckEaseInOutCubic(p);
       truckX = parkedX + (exitX - parkedX) * ease;
       speed  = (exitX - parkedX) / duration * 60;
 
@@ -1056,10 +1076,11 @@ function launchReverseTruck(pageEl, onComplete) {
       pageEl.style.clipPath   = `inset(0 0 0 0)`;   // ensure it's visible while sliding
 
       if(p < 0.95 && Math.random() < 0.4) {
-        spawnDust(truckX + truckW - 20, groundY + 12, Math.min(p*3+0.5, 2));
+        truckSpawnDust(particles, truckX + truckW - 20, groundY + 12, Math.min(p*3+0.5, 2), 1);
       }
 
       if(p >= 1) {
+        window.removeEventListener('resize', onResize);
         canvas.style.display = 'none';
         onComplete();
         ctx.restore();
@@ -1068,12 +1089,7 @@ function launchReverseTruck(pageEl, onComplete) {
     }
 
     // Particles
-    for(let i=particles.length-1;i>=0;i--){
-      const p2=particles[i];
-      p2.x+=p2.vx; p2.y+=p2.vy; p2.vy+=0.06;
-      p2.life-=p2.decay; p2.r*=0.97;
-      if(p2.life<=0) particles.splice(i,1);
-    }
+    truckUpdateParticles(particles);
 
     // Rope: truck front → right edge of page (page is sliding away)
     const ropeTruckX = truckX;                    // front of cab
@@ -1082,7 +1098,7 @@ function launchReverseTruck(pageEl, onComplete) {
       ? Math.min(W, parkedX - 40 + Math.max(0, truckX - parkedX - 40))
       : W;
     const ropePageY  = groundY - 30;
-    updateRope(ropeTruckX, ropeTruckY, ropePageX, ropePageY);
+    truckUpdateRope(ropePoints, ropeTruckX, ropeTruckY, ropePageX, ropePageY, ropeTargetLen);
 
     // Vertical leading edge of page
     if(ropePageX < W + 20) {
@@ -1094,8 +1110,8 @@ function launchReverseTruck(pageEl, onComplete) {
       ctx.restore();
     }
 
-    drawParticles();
-    drawRope();
+    truckDrawParticles(ctx, particles);
+    truckDrawRope(ctx, ropePoints);
     drawTruck(truckX, groundY - truckH, speed);
     ctx.restore();
     requestAnimationFrame(frame);
@@ -1106,7 +1122,10 @@ function launchReverseTruck(pageEl, onComplete) {
 
 
 // ── BACK TO NAV ──
+let backNavActive = false; // guard against double-activation
 function initBackToNav(pageEl) {
+  if(backNavActive) return;
+  backNavActive = true;
   // Create tooltip
   const tip = document.createElement('div');
   tip.id = 'back-tooltip';
@@ -1130,7 +1149,11 @@ function initBackToNav(pageEl) {
   }, TIMING.backTooltipFadeDelay);
 
   // Click anywhere = go back
-  function goBack() {
+  function goBack(e) {
+    // Ignore clicks on footer or footer elements
+    const footer = document.getElementById('foot-footer');
+    if(footer && footer.contains(e.target)) return;
+    
     clearTimeout(fadeTimer);
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('click', goBack);
@@ -1170,7 +1193,10 @@ function initBackToNav(pageEl) {
           btn.style.setProperty('--r', ((Math.random()-.5)*20)+'deg');
           setTimeout(()=>btn.classList.add('appeared'), i*TIMING.backBtnStagger + TIMING.backBtnStaggerOffset);
         });
+        // Play startup chime when returning to nav
+        setTimeout(playStartupChime, TIMING.chimeDelay);
         setTimeout(bindNav, TIMING.backNavReturnDelay);
+        backNavActive = false; // ready for next navigation
         const _ffr = document.getElementById('foot-footer');
         if(_ffr) { _ffr.style.display=''; setTimeout(()=>{ _ffr.style.transition=`opacity ${TIMING.footerFadeInDuration}ms ease`; _ffr.style.opacity='1'; }, TIMING.backFooterDelay); }
       });
@@ -1205,7 +1231,6 @@ function initFoot() {
   let wiggleT = 0;
   let footAlpha = 0;
   let isHovered = false;
-  let idleWiggleT = 0;        // runs always in idle for periodic wiggles
   let nextIdleWiggle = 180;   // frames until next idle wiggle burst
   let idleWiggleActive = false;
   let idleWiggleDuration = 0;
