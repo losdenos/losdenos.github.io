@@ -16,9 +16,9 @@ const TIMING = {
   keyPressedDuration: 120,   // ms the .pressed class stays on a key
 
   // Typing
-  typingBaseDelay:    90,   // ms between typed characters
-  typingJitter:        88,   // random extra ms per character
-  typingDoneDelay:    900,   // ms after last char before morphToNav
+  typingBaseDelay:    70,   // ms between typed characters
+  typingJitter:        33,   // random extra ms per character
+  typingDoneDelay:    700,   // ms after last char before morphToNav
   typingSkipDelay:    200,   // ms after skip before morphToNav
 
   // Nav morph
@@ -458,7 +458,7 @@ function playNavClick() {
   } catch(e) {}
 }
 // ── TYPING ──
-const TARGET="'Welcome to Densley's Portfolio'";
+const TARGET="Hi! Glad you chose creative!";
 function flashKey(ch, isSpace=false, isEnter=false){
   const k=document.querySelector(`#keyboard-wrap .key[data-char="${ch.toLowerCase()}"]`)
          ||document.querySelector('#keyboard-wrap .key[data-char=" "]');
