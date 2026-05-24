@@ -458,7 +458,7 @@ function playNavClick() {
   } catch(e) {}
 }
 // ── TYPING ──
-const TARGET="Hi! Glad you chose creative!";
+const TARGET="https://LosDenos.xyz";
 function flashKey(ch, isSpace=false, isEnter=false){
   const k=document.querySelector(`#keyboard-wrap .key[data-char="${ch.toLowerCase()}"]`)
          ||document.querySelector('#keyboard-wrap .key[data-char=" "]');
