@@ -41,10 +41,70 @@ function crackLoop(){
 crackLoop();
 function finishLoad(){
   const loader=document.getElementById('loader');
-  crackCanvas.style.transition='opacity .5s'; crackCanvas.style.opacity='0';
-  loader.style.transition='opacity .5s'; loader.style.opacity='0';
-  setTimeout(()=>{crackCanvas.style.display='none';loader.style.display='none';showScene();},500);
+  crackCanvas.style.transition=`opacity ${TIMING.loaderFadeOut}ms`; crackCanvas.style.opacity='0';
+  loader.style.transition=`opacity ${TIMING.loaderFadeOut}ms`; loader.style.opacity='0';
+  setTimeout(()=>{crackCanvas.style.display='none';loader.style.display='none';showScene();}, TIMING.loaderHideDelay);
 }
+
+// ── TIMING CONSTANTS ──
+// Central place for all animation/transition durations (ms) and counts.
+// Tweak here rather than hunting through the code.
+const TIMING = {
+  // Loader
+  loaderFadeOut:      500,   // crack canvas + loader fade duration
+  loaderHideDelay:    500,   // ms after fade before hiding + showing scene
+
+  // Keyboard entrance
+  keySpreadTotal:     580,   // total ms to spread all keys appearing
+  keySpreadJitter:     30,   // random jitter added per key (ms)
+  keyTotalKeys:        46,   // total number of keys on the keyboard
+  showPressToStartDelay: 700, // ms after keys appear before space glows
+
+  // Key press visual feedback
+  keyPressedDuration: 120,   // ms the .pressed class stays on a key
+
+  // Typing
+  typingBaseDelay:    120,   // ms between typed characters
+  typingJitter:        80,   // random extra ms per character
+  typingDoneDelay:    900,   // ms after last char before morphToNav
+  typingSkipDelay:    200,   // ms after skip before morphToNav
+
+  // Nav morph
+  morphHideDisplayDelay: 200,  // ms before keyboard starts hiding
+  morphShowNavDelay:     700,  // ms before nav appears
+  navBtnStagger:         120,  // ms between each nav button appearing
+  navBtnStaggerOffset:    50,  // initial offset before first button
+  chimeDelay:            400,  // ms after nav appears before startup chime
+  bindNavDelay:          600,  // ms after nav appears before click handlers bind
+
+  // Zoom / truck transition
+  zoomCentreDuration:    800,  // ms for button to zoom to centre
+  zoomShrinkDelay:       860,  // ms before button shrinks + fades
+  zoomShrinkDuration:    250,  // ms for shrink animation
+  zoomHideDelay:         300,  // ms after shrink before truck launches
+
+  // Footer
+  footerFadeInDelay:      50,  // ms before footer fades in (after display restore)
+  footerFadeInDuration:  500,  // ms for footer opacity transition
+  footerFadeOutDuration: 300,  // ms for footer to hide before truck
+
+  // Back navigation
+  backTooltipFadeDelay: 3000,  // ms tooltip stays visible before auto-fading
+  backNavGuardDelay:     600,  // ms guard before click-anywhere-to-go-back activates
+  backPageFadeDuration:  400,  // ms for page to fade out when going back
+  backNavReturnDelay:    400,  // ms after page fade before nav pops back in
+  backBtnStagger:        100,  // ms between each nav button re-appearing
+  backBtnStaggerOffset:   50,  // initial offset before first button re-appears
+  backFooterDelay:       200,  // ms before footer fades back in
+
+  // Truck
+  truckRevDelay:         100,  // ms delay before truck animation frame starts
+  truckPageRevealDelay:  900,  // ms after truck completes before back-nav activates
+
+  // Email copy feedback
+  copiedResetDelay:     1800,  // ms "✓ Copied!" stays before reverting
+  copiedAddressDelay:   3000,  // ms raw address stays if clipboard unavailable
+};
 
 // ── KEYBOARD ──
 function playStartupChime() {
@@ -149,34 +209,29 @@ function showScene(){
   if(emailLink) {
     emailLink.style.cursor = 'pointer';
     emailLink.addEventListener('click', () => {
-      const text = 'hi@losdenso.xyz';
-      try {
-        const el = document.createElement('textarea');
-        el.value = text; el.style.position='fixed'; el.style.opacity='0';
-        document.body.appendChild(el); el.focus(); el.select();
-        document.execCommand('copy'); document.body.removeChild(el);
-        const orig = emailLink.textContent;
+      const EMAIL = 'hi@losdenso.xyz';
+      const orig = emailLink.textContent;
+      const showCopied = () => {
         emailLink.textContent = '✓ Copied!';
         emailLink.style.background = '#000'; emailLink.style.color = '#fff';
-        setTimeout(() => { emailLink.textContent = orig; emailLink.style.background=''; emailLink.style.color=''; }, 1800);
-      } catch(err) {
-        navigator.clipboard && navigator.clipboard.writeText(text).then(() => {
-          emailLink.textContent = '✓ Copied!';
-          setTimeout(() => { emailLink.textContent = '⌥ Email'; }, 1800);
-        });
-      }
+        setTimeout(() => { emailLink.textContent = orig; emailLink.style.background=''; emailLink.style.color=''; }, TIMING.copiedResetDelay);
+      };
+      navigator.clipboard.writeText(EMAIL).then(showCopied).catch(() => {
+        // Clipboard API unavailable (e.g. non-https) — surface the address instead
+        emailLink.textContent = EMAIL;
+        setTimeout(() => { emailLink.textContent = orig; }, TIMING.copiedAddressDelay);
+      });
     });
   }
 
   const keys=[];
   document.querySelectorAll('#keyboard-wrap .key').forEach((key,ki)=>{
     key.style.setProperty('--r',((Math.random()-.5)*40)+'deg');
-    // Spread 46 keys across 580ms total (last key at ~580ms, showPressToStart at 700ms)
-    keys.push({el:key, delay: Math.round((ki/46)*580 + Math.random()*30)});
+    keys.push({el:key, delay: Math.round((ki/TIMING.keyTotalKeys)*TIMING.keySpreadTotal + Math.random()*TIMING.keySpreadJitter)});
   });
   keys.sort((a,b)=>a.delay-b.delay);
   keys.forEach(k=>setTimeout(()=>k.el.classList.add('appeared'),k.delay));
-  setTimeout(showPressToStart, 700);
+  setTimeout(showPressToStart, TIMING.showPressToStartDelay);
 }
 
 function showPressToStart() {
@@ -192,7 +247,7 @@ function showPressToStart() {
     spaceKey.textContent = 'SPACE';
     spaceKey.classList.add('pressed');
     playKeyClick(true);
-    setTimeout(()=>spaceKey.classList.remove('pressed'), 120);
+    setTimeout(()=>spaceKey.classList.remove('pressed'), TIMING.keyPressedDuration);
     spaceKey.removeEventListener('click', doStart);
     document.removeEventListener('keydown', onKey);
     if(enterKey) enterKey.removeEventListener('click', doSkip);
@@ -206,8 +261,8 @@ function showPressToStart() {
     if(enterKey) enterKey.removeEventListener('click', doSkip);
     enterKey.classList.add('pressed');
     playKeyClick(false, true);
-    setTimeout(()=>enterKey.classList.remove('pressed'), 120);
-    skipTyping = true;
+    setTimeout(()=>enterKey.classList.remove('pressed'), TIMING.keyPressedDuration);
+    // startTyping hasn't run yet — go straight to nav
     morphToNav();
   }
   function onKey(e) {
@@ -331,33 +386,33 @@ function playNavClick() {
 }
 // ── TYPING ──
 const TARGET='Welcome to Los Denso';
-let skipTyping = false;
 function flashKey(ch, isSpace=false, isEnter=false){
   const k=document.querySelector(`#keyboard-wrap .key[data-char="${ch.toLowerCase()}"]`)
          ||document.querySelector('#keyboard-wrap .key[data-char=" "]');
   if(!k)return;
   k.classList.add('pressed');
-  setTimeout(()=>k.classList.remove('pressed'),120);
+  setTimeout(()=>k.classList.remove('pressed'),TIMING.keyPressedDuration);
   playKeyClick(isSpace, isEnter);
 }
 function startTyping(){
   const span=document.getElementById('typed-text'); let i=0;
+  let skipTyping = false; // scoped here — avoids stale state if startTyping is ever called again
   const enterKey=document.getElementById('enter-key');
   // Re-bind enter to skip mid-typing (doSkip in showPressToStart handles pre-start)
   if(enterKey) enterKey.addEventListener('click',()=>{
     skipTyping=true;
     enterKey.classList.add('pressed');
-    setTimeout(()=>enterKey.classList.remove('pressed'),120);
+    setTimeout(()=>enterKey.classList.remove('pressed'),TIMING.keyPressedDuration);
     playKeyClick(false, true);
   });
   function next(){
-    if(skipTyping){ span.textContent=TARGET; setTimeout(morphToNav,200); return; }
-    if(i>=TARGET.length){setTimeout(morphToNav,900);return;}
+    if(skipTyping){ span.textContent=TARGET; setTimeout(morphToNav,TIMING.typingSkipDelay); return; }
+    if(i>=TARGET.length){setTimeout(morphToNav,TIMING.typingDoneDelay);return;}
     const ch=TARGET[i];
     span.textContent+=ch;
     flashKey(ch, ch===' ');
     i++;
-    setTimeout(next,120+Math.random()*80);
+    setTimeout(next,TIMING.typingBaseDelay+Math.random()*TIMING.typingJitter);
   }
   next();
 }
@@ -369,22 +424,25 @@ function morphToNav(){
   const disp=document.getElementById('typed-display');
   document.getElementById('cursor').style.display='none';
   disp.classList.add('hiding');
-  setTimeout(()=>kb.classList.add('hiding'),200);
+  setTimeout(()=>kb.classList.add('hiding'), TIMING.morphHideDisplayDelay);
   setTimeout(()=>{
     kb.style.display='none'; disp.style.display='none';
     nav.classList.add('visible');
     document.querySelectorAll('.nav-btn').forEach((btn,i)=>{
       btn.style.setProperty('--r',((Math.random()-.5)*30)+'deg');
-      setTimeout(()=>btn.classList.add('appeared'),i*120+50);
+      setTimeout(()=>btn.classList.add('appeared'), i*TIMING.navBtnStagger + TIMING.navBtnStaggerOffset);
     });
-    setTimeout(playStartupChime, 400);
-    setTimeout(bindNav,600);
+    setTimeout(playStartupChime, TIMING.chimeDelay);
+    setTimeout(bindNav, TIMING.bindNavDelay);
     // Show footer now that nav is visible
     const ff = document.getElementById('foot-footer');
-    if(ff) { ff.style.removeProperty('display'); ff.style.opacity='0'; setTimeout(()=>{ ff.style.transition='opacity 0.5s ease'; ff.style.opacity='1'; },50); }
-  },700);
+    if(ff) { ff.style.removeProperty('display'); ff.style.opacity='0'; setTimeout(()=>{ ff.style.transition=`opacity ${TIMING.footerFadeInDuration}ms ease`; ff.style.opacity='1'; }, TIMING.footerFadeInDelay); }
+  }, TIMING.morphShowNavDelay);
 }
 function _navHandler(page){ return function(){ playNavClick(); zoomPage(page); }; }
+// _navHandlers stores the bound function reference for each button so we can
+// cleanly removeEventListener before re-binding (prevents duplicate firings
+// when the user navigates back and bindNav is called again).
 let _navHandlers = {};
 function bindNav(){
   ['about','projects','contact'].forEach(page=>{
@@ -409,15 +467,15 @@ function zoomPage(page) {
   const tx = window.innerWidth/2 - (r.left + r.width/2);
   const ty = window.innerHeight/2 - (r.top + r.height/2);
 
-  btn.style.transition = 'transform 0.8s cubic-bezier(.4,0,.2,1), opacity 0.4s ease';
+  btn.style.transition = `transform ${TIMING.zoomCentreDuration}ms cubic-bezier(.4,0,.2,1), opacity ${TIMING.zoomCentreDuration/2}ms ease`;
   btn.style.transform = `translate(${tx}px,${ty}px) scale(1.12)`;
 
   setTimeout(()=>{
-    btn.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+    btn.style.transition = `transform ${TIMING.zoomShrinkDuration}ms ease, opacity ${TIMING.zoomShrinkDuration}ms ease`;
     btn.style.transform = `translate(${tx}px,${ty}px) scale(0.9)`;
     btn.style.opacity = '0';
-    setTimeout(()=>{ btn.style.display='none'; launchTruckCanvas(page); }, 300);
-  }, 860);
+    setTimeout(()=>{ btn.style.display='none'; launchTruckCanvas(page); }, TIMING.zoomHideDelay);
+  }, TIMING.zoomShrinkDelay);
 }
 
 function launchTruckCanvas(page='about') {
@@ -428,7 +486,7 @@ function launchTruckCanvas(page='about') {
   canvas.style.display = 'block';
   // Hide footer during truck animation
   const _ff = document.getElementById('foot-footer');
-  if(_ff) { _ff.style.transition='opacity 0.3s ease'; _ff.style.opacity='0'; setTimeout(()=>{ _ff.style.display='none'; },300); }
+  if(_ff) { _ff.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`; _ff.style.opacity='0'; setTimeout(()=>{ _ff.style.display='none'; }, TIMING.footerFadeOutDuration); }
 
   // Page content per section
   const pageContent = {
@@ -714,10 +772,10 @@ function launchTruckCanvas(page='about') {
         const content = aboutPage.querySelector('.about-content');
         if(content) requestAnimationFrame(()=>content.classList.add('animate'));
         // Show "click to go back" tooltip then wire up back navigation
-        setTimeout(()=>initBackToNav(aboutPage), 900);
+        setTimeout(()=>initBackToNav(aboutPage), TIMING.truckPageRevealDelay);
         // Restore footer above the content page
         const _ff2 = document.getElementById('foot-footer');
-        if(_ff2) { _ff2.style.display=''; _ff2.style.opacity='0'; setTimeout(()=>{ _ff2.style.transition='opacity 0.5s ease'; _ff2.style.opacity='1'; },100); }
+        if(_ff2) { _ff2.style.display=''; _ff2.style.opacity='0'; setTimeout(()=>{ _ff2.style.transition=`opacity ${TIMING.footerFadeInDuration}ms ease`; _ff2.style.opacity='1'; }, TIMING.footerFadeInDelay); }
         ctx.restore();
         return;
       }
@@ -764,7 +822,7 @@ function launchTruckCanvas(page='about') {
   }
 
   // Small rev delay to let button fade out
-  setTimeout(()=>requestAnimationFrame(frame), 100);
+  setTimeout(()=>requestAnimationFrame(frame), TIMING.truckRevDelay);
 }
 
 
@@ -786,11 +844,11 @@ function initBackToNav(pageEl) {
   // Show it
   requestAnimationFrame(()=>tip.classList.add('visible'));
 
-  // Fade out after 3s
+  // Fade out after configured delay
   const fadeTimer = setTimeout(()=>{
     tip.classList.remove('visible');
     tip.classList.add('fade-out');
-  }, 3000);
+  }, TIMING.backTooltipFadeDelay);
 
   // Click anywhere = go back
   function goBack() {
@@ -800,10 +858,10 @@ function initBackToNav(pageEl) {
     tip.remove();
 
     // Fade out the page and footer together
-    pageEl.style.transition = 'opacity 0.4s ease';
+    pageEl.style.transition = `opacity ${TIMING.backPageFadeDuration}ms ease`;
     pageEl.style.opacity = '0';
     const _ffb = document.getElementById('foot-footer');
-    if(_ffb) { _ffb.style.transition='opacity 0.3s ease'; _ffb.style.opacity='0'; }
+    if(_ffb) { _ffb.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`; _ffb.style.opacity='0'; }
     setTimeout(()=>{
       pageEl.remove();
 
@@ -835,18 +893,18 @@ function initBackToNav(pageEl) {
         nav.style.removeProperty('pointer-events');
         document.querySelectorAll('.nav-btn').forEach((btn,i)=>{
           btn.style.setProperty('--r', ((Math.random()-.5)*20)+'deg');
-          setTimeout(()=>btn.classList.add('appeared'), i*100+50);
+          setTimeout(()=>btn.classList.add('appeared'), i*TIMING.backBtnStagger + TIMING.backBtnStaggerOffset);
         });
-        setTimeout(bindNav, 400);
+        setTimeout(bindNav, TIMING.backNavReturnDelay);
         // Fade footer back in with nav
         const _ffr = document.getElementById('foot-footer');
-        if(_ffr) { _ffr.style.display=''; setTimeout(()=>{ _ffr.style.transition='opacity 0.5s ease'; _ffr.style.opacity='1'; },200); }
+        if(_ffr) { _ffr.style.display=''; setTimeout(()=>{ _ffr.style.transition=`opacity ${TIMING.footerFadeInDuration}ms ease`; _ffr.style.opacity='1'; }, TIMING.backFooterDelay); }
       });
-    }, 400);
+    }, TIMING.backNavReturnDelay);
   }
 
   // Small delay so the page-reveal click doesn't immediately trigger goBack
-  setTimeout(()=>document.addEventListener('click', goBack), 600);
+  setTimeout(()=>document.addEventListener('click', goBack), TIMING.backNavGuardDelay);
 }
 
 // ── FOOT FOOTER ──
