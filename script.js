@@ -491,6 +491,8 @@ function morphToNav(){
     });
     setTimeout(playStartupChime, TIMING.chimeDelay);
     setTimeout(bindNav, TIMING.bindNavDelay);
+    // Show train switch
+    setTimeout(()=>initTrainSwitch(), TIMING.bindNavDelay);
     // Show footer now that nav is visible
     const ff = document.getElementById('foot-footer');
     if(ff) { ff.style.removeProperty('display'); ff.style.opacity='0'; setTimeout(()=>{ ff.style.transition=`opacity ${TIMING.footerFadeInDuration}ms ease`; ff.style.opacity='1'; }, TIMING.footerFadeInDelay); }
@@ -623,9 +625,14 @@ function launchTruckCanvas(page='about') {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   canvas.style.display = 'block';
-  // Hide footer during truck animation
+  // Hide footer during truck animation, will reappear as toes-only after
   const _ff = document.getElementById('foot-footer');
-  if(_ff) { _ff.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`; _ff.style.opacity='0'; setTimeout(()=>{ _ff.style.display='none'; }, TIMING.footerFadeOutDuration); }
+  if(_ff) {
+    _ff.classList.remove('toes-only','peeked');
+    _ff.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`;
+    _ff.style.opacity='0';
+    setTimeout(()=>{ _ff.style.display='none'; }, TIMING.footerFadeOutDuration);
+  }
 
   // Resize canvas if orientation changes mid-animation
   const onResize = debounce(() => {
@@ -853,9 +860,21 @@ function launchTruckCanvas(page='about') {
         if(content) requestAnimationFrame(()=>content.classList.add('animate'));
         // Show "click to go back" tooltip then wire up back navigation
         setTimeout(()=>initBackToNav(aboutPage), TIMING.truckPageRevealDelay);
-        // Restore footer above the content page
+        // Restore footer in toes-only mode — toes peek, hover pops it out
         const _ff2 = document.getElementById('foot-footer');
-        if(_ff2) { _ff2.style.display=''; _ff2.style.opacity='0'; setTimeout(()=>{ _ff2.style.transition=`opacity ${TIMING.footerFadeInDuration}ms ease`; _ff2.style.opacity='1'; }, TIMING.footerFadeInDelay); }
+        if(_ff2) {
+          _ff2.style.display = '';
+          _ff2.style.opacity = '1';
+          _ff2.style.transition = `transform 0.55s cubic-bezier(0.34,1.56,0.64,1)`;
+          setTimeout(()=>{
+            _ff2.classList.add('toes-only');
+            // Hover to pop out / retract
+            _ff2._toesEnter = () => { _ff2.classList.add('peeked'); };
+            _ff2._toesLeave = () => { _ff2.classList.remove('peeked'); };
+            _ff2.addEventListener('mouseenter', _ff2._toesEnter);
+            _ff2.addEventListener('mouseleave', _ff2._toesLeave);
+          }, TIMING.footerFadeInDelay);
+        }
         ctx.restore();
         return;
       }
@@ -1159,9 +1178,16 @@ function initBackToNav(pageEl) {
     document.removeEventListener('click', goBack);
     tip.remove();
 
-    // Hide footer immediately
+    // Clean up toes-only mode and its hover listeners
     const _ffb = document.getElementById('foot-footer');
-    if(_ffb) { _ffb.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`; _ffb.style.opacity='0'; setTimeout(()=>{ _ffb.style.display='none'; }, TIMING.footerFadeOutDuration); }
+    if(_ffb) {
+      if(_ffb._toesEnter) { _ffb.removeEventListener('mouseenter', _ffb._toesEnter); delete _ffb._toesEnter; }
+      if(_ffb._toesLeave) { _ffb.removeEventListener('mouseleave', _ffb._toesLeave); delete _ffb._toesLeave; }
+      _ffb.classList.remove('toes-only','peeked');
+      _ffb.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`;
+      _ffb.style.opacity='0';
+      setTimeout(()=>{ _ffb.style.display='none'; }, TIMING.footerFadeOutDuration);
+    }
 
     // Reverse truck wipe — matches the energy of the forward transition
     launchReverseTruck(pageEl, ()=>{
@@ -1196,6 +1222,9 @@ function initBackToNav(pageEl) {
         // Play startup chime when returning to nav
         setTimeout(playStartupChime, TIMING.chimeDelay);
         setTimeout(bindNav, TIMING.backNavReturnDelay);
+        // Re-show train switch
+        const tsw = document.getElementById('train-switch-wrap');
+        if(tsw) tsw.classList.add('visible');
         backNavActive = false; // ready for next navigation
         const _ffr = document.getElementById('foot-footer');
         if(_ffr) { _ffr.style.display=''; setTimeout(()=>{ _ffr.style.transition=`opacity ${TIMING.footerFadeInDuration}ms ease`; _ffr.style.opacity='1'; }, TIMING.backFooterDelay); }
@@ -1205,6 +1234,405 @@ function initBackToNav(pageEl) {
 
   // Small delay so the page-reveal click doesn't immediately trigger goBack
   setTimeout(()=>document.addEventListener('click', goBack), TIMING.backNavGuardDelay);
+}
+
+// ── TRAIN SWITCH (dark mode toggle) ──
+let trainSwitchInited = false;
+let isDark = false;
+
+function initTrainSwitch() {
+  if(trainSwitchInited) {
+    // Already inited — just make it visible again
+    const tsw = document.getElementById('train-switch-wrap');
+    if(tsw) tsw.classList.add('visible');
+    return;
+  }
+  trainSwitchInited = true;
+
+  const wrap = document.getElementById('train-switch-wrap');
+  const sc   = document.getElementById('train-switch-canvas');
+  if(!wrap || !sc) return;
+  wrap.classList.add('visible');
+
+  const W = 60, H = 60;
+  const dpr = window.devicePixelRatio || 1;
+  sc.width  = W * dpr; sc.height = H * dpr;
+  sc.style.width = W + 'px'; sc.style.height = H + 'px';
+  const cx = sc.getContext('2d');
+  cx.scale(dpr, dpr);
+
+  // Switch state: 0 = up (light), 1 = down (dark)
+  let leverT = 0; // 0..1, animated
+  let leverTarget = 0;
+  let leverRaf = null;
+  let busy = false;
+
+  function drawSwitch(t) {
+    cx.clearRect(0, 0, W, H);
+    const fg = isDark ? '#f0f0f0' : '#000';
+    const bg = isDark ? '#0a0a0a' : '#fff';
+
+    // Base plate
+    cx.fillStyle = bg;
+    cx.strokeStyle = fg;
+    cx.lineWidth = 2;
+    cx.beginPath();
+    cx.roundRect(14, 38, 32, 16, 4);
+    cx.fill(); cx.stroke();
+
+    // Pivot dot
+    cx.fillStyle = fg;
+    cx.beginPath(); cx.arc(30, 44, 3, 0, Math.PI*2); cx.fill();
+
+    // Lever — rotates from -40deg (up/light) to +40deg (down/dark)
+    const angle = (-40 + t * 80) * Math.PI / 180;
+    const len = 20;
+    const ex = 30 + Math.sin(angle) * len;
+    const ey = 44 - Math.cos(angle) * len;
+
+    cx.strokeStyle = fg; cx.lineWidth = 3; cx.lineCap = 'round';
+    cx.beginPath(); cx.moveTo(30, 44); cx.lineTo(ex, ey); cx.stroke();
+
+    // Knob at tip
+    cx.fillStyle = t > 0.5 ? '#ccff00' : fg;
+    cx.strokeStyle = fg; cx.lineWidth = 1.5;
+    cx.beginPath(); cx.arc(ex, ey, 5, 0, Math.PI*2); cx.fill(); cx.stroke();
+
+    // Small label ticks: sun (left) / moon (right)
+    cx.fillStyle = fg; cx.font = '8px monospace'; cx.textAlign = 'center';
+    cx.fillText('☀', 18, 35);
+    cx.fillText('☾', 42, 35);
+  }
+
+  function animateLever() {
+    const speed = 0.07;
+    if(Math.abs(leverT - leverTarget) < 0.01) {
+      leverT = leverTarget;
+      drawSwitch(leverT);
+      leverRaf = null;
+      return;
+    }
+    leverT += (leverTarget - leverT) * speed * 2.5;
+    drawSwitch(leverT);
+    leverRaf = requestAnimationFrame(animateLever);
+  }
+
+  drawSwitch(0);
+
+  sc.addEventListener('click', () => {
+    if(busy) return;
+    busy = true;
+    leverTarget = isDark ? 0 : 1;
+    if(!leverRaf) leverRaf = requestAnimationFrame(animateLever);
+    // Kick off the train animation
+    runTrainTransition(() => {
+      isDark = !isDark;
+      document.body.classList.toggle('dark', isDark);
+      drawSwitch(leverT);
+      busy = false;
+    });
+  });
+}
+
+// ── TRAIN TRANSITION ANIMATION ──
+function runTrainTransition(onDarkToggle) {
+  const canvas = document.getElementById('train-canvas');
+  if(!canvas) { onDarkToggle(); return; }
+  const ctx = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.display = 'block';
+
+  const W = canvas.width, H = canvas.height;
+  const fg = isDark ? '#f0f0f0' : '#000';
+  const bg = isDark ? '#0a0a0a' : '#fff';
+
+  // Grab nav button rects before we manipulate them
+  const btns = ['btn-about','btn-projects','btn-contact'].map(id => {
+    const el = document.getElementById(id);
+    const r  = el ? el.getBoundingClientRect() : null;
+    return { el, r };
+  });
+
+  // Hide nav buttons while we animate on canvas
+  btns.forEach(b => { if(b.el) b.el.style.visibility = 'hidden'; });
+  // Hide train switch temporarily
+  const tsw = document.getElementById('train-switch-wrap');
+  if(tsw) tsw.style.opacity = '0';
+
+  // --- Geometry ---
+  // Car sizes match button sizes: 140x56
+  const carW = 140, carH = 56, carGap = 16;
+  const numCars = 3;
+  // Starting X for first car = left edge of first button in viewport
+  const startX = btns[0].r ? btns[0].r.left : W/2 - (numCars*(carW+carGap))/2;
+  const trainY  = btns[0].r ? btns[0].r.top  : H/2 - carH/2;
+
+  // Labels for each car
+  const labels = ['ABOUT ME', 'PROJECTS', 'CONTACT'];
+
+  // Track Y = bottom of cars
+  const trackY = trainY + carH;
+
+  // Phase: 'assemble' → 'run' → 'transition' → 'return' → 'done'
+  // assemble: connectors appear between cars (instant, drawn)
+  // run: train slides right off screen, tracks extend right
+  // transition: dark mode flips, train re-enters from left
+  // return: train slides back to centre, cars dissolve into buttons
+  let phase = 'run';
+  let trainX = startX;   // left edge of engine (first car)
+  const exitX   = W + 50;              // fully off right
+  const enterX  = -(numCars*(carW+carGap) + 100); // fully off left
+
+  let trackProgress = 0; // 0..1, how far the tracks have drawn (right side)
+  let runProgress   = 0;
+  let transProgress = 0;
+  let returnProgress = 0;
+  let darkToggled = false;
+
+  // Smoke particles
+  const smoke = [];
+  function spawnSmoke(x, y) {
+    for(let i = 0; i < 2; i++) {
+      smoke.push({ x, y: y + (Math.random()-0.5)*4,
+        vx: -(1+Math.random()*1.5), vy: -(0.5+Math.random()),
+        life: 1, r: 4+Math.random()*5 });
+    }
+  }
+  function updateSmoke() {
+    for(let i = smoke.length-1; i >= 0; i--) {
+      const s = smoke[i];
+      s.x += s.vx; s.y += s.vy; s.vy *= 0.97;
+      s.life -= 0.022; s.r *= 0.99;
+      if(s.life <= 0) smoke.splice(i, 1);
+    }
+  }
+  function drawSmoke() {
+    smoke.forEach(s => {
+      ctx.save(); ctx.globalAlpha = s.life * 0.35;
+      ctx.fillStyle = isDark ? '#888' : '#888';
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  // Draw a single train car at position x, y
+  function drawCar(x, y, label, isEngine) {
+    const cFg = isDark ? '#f0f0f0' : '#000';
+    const cBg = isDark ? '#111'    : '#fff';
+    const wheelR = 8;
+    const wheelY = y + carH + wheelR - 2;
+
+    // Body
+    ctx.fillStyle = cBg; ctx.strokeStyle = cFg; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.roundRect(x, y, carW, carH, 6); ctx.fill(); ctx.stroke();
+    // Box shadow feel
+    ctx.fillStyle = 'rgba(0,0,0,0.0)'; // shadow via stroke offset
+
+    // Label
+    ctx.fillStyle = cFg;
+    ctx.font = 'bold 11px "Courier New",monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + carW/2, y + carH/2);
+
+    // Engine chimney
+    if(isEngine) {
+      ctx.fillStyle = cFg; ctx.strokeStyle = cFg; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.rect(x + 10, y - 12, 8, 14); ctx.fill();
+    }
+
+    // Wheels
+    [x + 18, x + carW - 18].forEach(wx => {
+      ctx.fillStyle = cFg;
+      ctx.beginPath(); ctx.arc(wx, wheelY, wheelR, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = cBg;
+      ctx.beginPath(); ctx.arc(wx, wheelY, wheelR * 0.45, 0, Math.PI*2); ctx.fill();
+    });
+  }
+
+  // Draw connector between cars
+  function drawConnector(x1, y) {
+    const cFg = isDark ? '#f0f0f0' : '#000';
+    ctx.strokeStyle = cFg; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y + carH/2 - 6);
+    ctx.lineTo(x1 + carGap, y + carH/2 - 6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x1, y + carH/2 + 6);
+    ctx.lineTo(x1 + carGap, y + carH/2 + 6);
+    ctx.stroke();
+    // Coupler box
+    ctx.fillStyle = cFg;
+    ctx.beginPath(); ctx.rect(x1 + carGap/2 - 4, y + carH/2 - 8, 8, 16); ctx.fill();
+  }
+
+  // Draw tracks from trackStartX to trackEndX
+  function drawTracks(startTX, endTX, ty) {
+    const cFg = isDark ? '#555' : '#bbb';
+    const railOff = 6; // half-spacing between rails
+    const sleeperW = 16, sleeperSpacing = 22;
+
+    // Rails
+    ctx.strokeStyle = isDark ? '#888' : '#888'; ctx.lineWidth = 3;
+    [ty - railOff, ty + railOff].forEach(ry => {
+      ctx.beginPath(); ctx.moveTo(startTX, ry); ctx.lineTo(endTX, ry); ctx.stroke();
+    });
+
+    // Sleepers
+    ctx.strokeStyle = isDark ? '#555' : '#555'; ctx.lineWidth = 4; ctx.lineCap = 'square';
+    for(let sx = startTX; sx < endTX; sx += sleeperSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(sx, ty - railOff - 4);
+      ctx.lineTo(sx, ty + railOff + 4);
+      ctx.stroke();
+    }
+  }
+
+  let wheelAngle = 0;
+
+  function easeInOut(t) { return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2; }
+  function easeOut(t)   { return 1 - Math.pow(1-t, 3); }
+
+  let lastTs = null;
+
+  function frame(ts) {
+    if(!lastTs) lastTs = ts;
+    const dt = Math.min((ts - lastTs) / (1000/60), 3);
+    lastTs = ts;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // --- PHASE: run (train exits right, tracks extend) ---
+    if(phase === 'run') {
+      runProgress = Math.min(runProgress + 0.008 * dt, 1);
+      trackProgress = Math.min(trackProgress + 0.014 * dt, 1);
+
+      const speed = easeInOut(runProgress);
+      trainX = startX + (exitX - startX) * speed;
+      wheelAngle += speed * 2 * dt;
+
+      // Tracks extend full width left→right
+      const trackEnd = W * easeOut(trackProgress);
+      drawTracks(0, trackEnd, trackY + 10);
+
+      // Draw train
+      for(let i = 0; i < numCars; i++) {
+        const cx2 = trainX + i*(carW+carGap);
+        drawCar(cx2, trainY, labels[i], i === 0);
+        if(i < numCars-1) drawConnector(cx2 + carW, trainY);
+        // Smoke from engine
+        if(i === 0 && Math.random() < 0.4) spawnSmoke(trainX + 14, trainY - 14);
+      }
+      updateSmoke(); drawSmoke();
+
+      // Wheel rotation overlay
+      for(let i = 0; i < numCars; i++) {
+        const cx2 = trainX + i*(carW+carGap);
+        const wheelY2 = trainY + carH + 8 - 2;
+        const cFg = isDark ? '#f0f0f0' : '#000';
+        [cx2+18, cx2+carW-18].forEach(wx => {
+          ctx.strokeStyle = isDark ? '#111' : '#fff'; ctx.lineWidth = 1.5;
+          for(let s = 0; s < 4; s++) {
+            const a = wheelAngle + s*Math.PI/2;
+            ctx.beginPath();
+            ctx.moveTo(wx + Math.cos(a)*3, wheelY2 + Math.sin(a)*3);
+            ctx.lineTo(wx + Math.cos(a)*6.5, wheelY2 + Math.sin(a)*6.5);
+            ctx.stroke();
+          }
+        });
+      }
+
+      if(runProgress >= 1) {
+        phase = 'transition';
+        transProgress = 0;
+      }
+    }
+
+    // --- PHASE: transition (dark mode flip, flash, train re-enters) ---
+    else if(phase === 'transition') {
+      transProgress = Math.min(transProgress + 0.02 * dt, 1);
+
+      // Keep tracks full width during transition
+      drawTracks(0, W, trackY + 10);
+
+      // Flash overlay at midpoint
+      if(transProgress > 0.3 && !darkToggled) {
+        darkToggled = true;
+        onDarkToggle(); // flip dark mode
+      }
+
+      // Flash: bright white/dark flash
+      const flashT = transProgress < 0.5
+        ? transProgress / 0.5
+        : 1 - (transProgress - 0.5) / 0.5;
+      if(flashT > 0) {
+        ctx.save();
+        ctx.globalAlpha = flashT * 0.85;
+        ctx.fillStyle = isDark ? '#0a0a0a' : '#fff';
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      }
+
+      // Train enters from left during second half
+      if(transProgress > 0.5) {
+        const enterProgress = (transProgress - 0.5) / 0.5;
+        trainX = enterX + (startX - enterX) * easeOut(enterProgress);
+        wheelAngle -= easeOut(enterProgress) * 1.5 * dt;
+
+        for(let i = 0; i < numCars; i++) {
+          const cx2 = trainX + i*(carW+carGap);
+          drawCar(cx2, trainY, labels[i], i === 0);
+          if(i < numCars-1) drawConnector(cx2 + carW, trainY);
+          if(i === 0 && Math.random() < 0.3) spawnSmoke(trainX + 14, trainY - 14);
+        }
+        updateSmoke(); drawSmoke();
+      }
+
+      if(transProgress >= 1) {
+        phase = 'return';
+        returnProgress = 0;
+        trainX = startX; // snap to final position
+      }
+    }
+
+    // --- PHASE: return (train parks, buttons reappear) ---
+    else if(phase === 'return') {
+      returnProgress = Math.min(returnProgress + 0.018 * dt, 1);
+
+      // Tracks fade out full width
+      const cFgTrack = isDark ? '#f0f0f0' : '#000';
+      ctx.save();
+      ctx.globalAlpha = 1 - easeOut(returnProgress);
+      drawTracks(0, W, trackY + 10);
+      ctx.restore();
+
+      // Cars dissolve (fade out)
+      ctx.save();
+      ctx.globalAlpha = 1 - easeOut(returnProgress);
+      for(let i = 0; i < numCars; i++) {
+        const cx2 = startX + i*(carW+carGap);
+        drawCar(cx2, trainY, labels[i], i === 0);
+        if(i < numCars-1) drawConnector(cx2 + carW, trainY);
+      }
+      ctx.restore();
+
+      if(returnProgress >= 1) {
+        phase = 'done';
+        canvas.style.display = 'none';
+        ctx.clearRect(0, 0, W, H);
+        // Restore nav buttons
+        btns.forEach(b => { if(b.el) b.el.style.visibility = ''; });
+        // Restore train switch
+        if(tsw) tsw.style.opacity = '';
+        return;
+      }
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
 }
 
 // ── FOOT FOOTER ──
