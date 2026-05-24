@@ -116,7 +116,7 @@ function finishLoad(){
   const loader=document.getElementById('loader');
   crackCanvas.style.transition=`opacity ${TIMING.loaderFadeOut}ms`; crackCanvas.style.opacity='0';
   loader.style.transition=`opacity ${TIMING.loaderFadeOut}ms`; loader.style.opacity='0';
-  setTimeout(()=>{crackCanvas.style.display='none';loader.style.display='none';showScene();}, TIMING.loaderHideDelay);
+  setTimeout(()=>{crackCanvas.style.display='none';loader.style.display='none';showModeSelector();}, TIMING.loaderHideDelay);
 }
 
 // ── KEYBOARD ──
@@ -244,6 +244,28 @@ function scaleKeyboard() {
   const targetH = window.innerHeight * 0.55;
   const scale = Math.min(targetW / naturalW, targetH / naturalH, 1);
   kb.style.transform = 'scale(' + scale + ')';
+}
+
+// ── MODE SELECTOR ──
+function showModeSelector() {
+  const selector = document.getElementById('mode-selector');
+  selector.classList.add('visible');
+  
+  // Bind creative button
+  document.getElementById('mode-creative').addEventListener('click', () => {
+    selectCreativeMode();
+  });
+}
+
+function selectCreativeMode() {
+  const selector = document.getElementById('mode-selector');
+  selector.style.transition = 'opacity 0.4s ease';
+  selector.style.opacity = '0';
+  
+  setTimeout(() => {
+    selector.style.display = 'none';
+    showScene();
+  }, 400);
 }
 
 function showScene(){
