@@ -458,7 +458,7 @@ function playNavClick() {
   } catch(e) {}
 }
 // ── TYPING ──
-const TARGET='Welcome to Los Denso';
+const TARGET='Welcome to Densley's Portfolio';
 function flashKey(ch, isSpace=false, isEnter=false){
   const k=document.querySelector(`#keyboard-wrap .key[data-char="${ch.toLowerCase()}"]`)
          ||document.querySelector('#keyboard-wrap .key[data-char=" "]');
