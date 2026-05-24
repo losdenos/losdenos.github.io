@@ -100,6 +100,7 @@ const TIMING = {
   // Truck
   truckRevDelay:         100,  // ms delay before truck animation frame starts
   truckPageRevealDelay:  900,  // ms after truck completes before back-nav activates
+  truckReverseDuration: 2000,  // ms for the reverse (back) truck wipe animation
 
   // Email copy feedback
   copiedResetDelay:     1800,  // ms "✓ Copied!" stays before reverting
@@ -826,6 +827,284 @@ function launchTruckCanvas(page='about') {
 }
 
 
+// ── REVERSE TRUCK TRANSITION (back to nav) ──
+// A truck drives in from the right, hooks the page, and drags it off-screen right.
+// Mirrors the forward transition so going back feels as intentional as going forward.
+function launchReverseTruck(pageEl, onComplete) {
+  const canvas = document.getElementById('truck-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.display = 'block';
+
+  const W = canvas.width, H = canvas.height;
+  const duration   = TIMING.truckReverseDuration;
+  const truckW     = 200, truckH = 80;
+  const groundY    = H / 2 + 70;
+  // Truck enters from right edge, parks at centre-right, then drags page off
+  const enterX     = W + truckW;         // start off-screen right
+  const parkedX    = W / 2 + 40;        // where it stops briefly before pulling
+  const exitX      = W + truckW + 60;   // final off-screen position (dragging page)
+
+  let startTime    = null;
+  let wheelAngle   = 0;
+  let phase        = 'enter';            // enter → pause → pull
+  let pauseStart   = null;
+  const pauseMs    = 260;               // brief stop before yanking the page
+  let truckX       = enterX;
+  let shakeX = 0, shakeY = 0, shakeDecay = 0;
+  const particles  = [];
+
+  function triggerShake(mag) { shakeDecay = mag; }
+  function spawnDust(x, y, speed) {
+    for(let i = 0; i < 3; i++) {
+      particles.push({
+        x, y: y + (Math.random() - 0.5) * 6,
+        vx: (1.5 + Math.random() * 2) * speed,  // dust blows right (truck moving right)
+        vy: -(0.5 + Math.random() * 1.5),
+        life: 1, decay: 0.025 + Math.random() * 0.02,
+        r: 4 + Math.random() * 8
+      });
+    }
+  }
+
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+  function easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+
+  // Rope: from right edge of page to front of truck cab
+  const ROPE_SEGS = 12;
+  let ropePoints  = [];
+  function initRope(ax,ay,bx,by) {
+    ropePoints = [];
+    for(let i = 0; i <= ROPE_SEGS; i++) {
+      const t = i / ROPE_SEGS;
+      ropePoints.push({ x:ax+(bx-ax)*t, y:ay+(by-ay)*t, px:ax+(bx-ax)*t, py:ay+(by-ay)*t, pinned:(i===0||i===ROPE_SEGS) });
+    }
+  }
+  function updateRope(ax,ay,bx,by) {
+    ropePoints[0].x = ax; ropePoints[0].y = ay;
+    ropePoints[ROPE_SEGS].x = bx; ropePoints[ROPE_SEGS].y = by;
+    for(let iter = 0; iter < 4; iter++) {
+      for(let i = 0; i < ROPE_SEGS; i++) {
+        const a = ropePoints[i], b = ropePoints[i+1];
+        const dx = b.x-a.x, dy = b.y-a.y;
+        const dist = Math.sqrt(dx*dx+dy*dy)||1;
+        const targetLen = 20, diff = (dist-targetLen)/dist*0.5;
+        if(!a.pinned){a.x+=dx*diff;a.y+=dy*diff;}
+        if(!b.pinned){b.x-=dx*diff;b.y-=dy*diff;}
+      }
+    }
+    for(let i = 1; i < ROPE_SEGS; i++) {
+      const p = ropePoints[i];
+      const vx = p.x-p.px, vy = p.y-p.py;
+      p.px=p.x; p.py=p.y;
+      p.x+=vx*0.85; p.y+=vy*0.85+0.25;
+    }
+    ropePoints[0].x=ax; ropePoints[0].y=ay;
+    ropePoints[ROPE_SEGS].x=bx; ropePoints[ROPE_SEGS].y=by;
+  }
+  // Rope anchors: truck front hooks into right edge of page
+  initRope(enterX, groundY - truckH + 38, W, groundY - 30);
+
+  function drawTruck(x, y, speed) {
+    const tw=truckW, th=truckH;
+    const wheelR=16, wheelY=y+th-4;
+    const cabW=52;
+
+    ctx.save();
+    // Shadow
+    ctx.fillStyle='rgba(0,0,0,0.08)';
+    ctx.beginPath();
+    ctx.ellipse(x+tw*0.45, wheelY+wheelR+2, tw*0.45, 8, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Trailer body
+    ctx.fillStyle='#fff'; ctx.strokeStyle='#000'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.rect(x+cabW-8, y+10, tw-cabW+8, th-20); ctx.fill(); ctx.stroke();
+
+    // Trailer label
+    ctx.fillStyle='#000'; ctx.font='bold 11px "Courier New",monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('LOS DENSO', x+cabW+(tw-cabW)/2-4, y+th/2);
+
+    // Hatch lines
+    ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=1;
+    for(let lx=x+cabW+6; lx<x+tw; lx+=18){
+      ctx.beginPath(); ctx.moveTo(lx,y+12); ctx.lineTo(lx,y+th-12); ctx.stroke();
+    }
+
+    // Cab (mirrored — cab on the LEFT since truck faces right)
+    ctx.fillStyle='#fff'; ctx.strokeStyle='#000'; ctx.lineWidth=3;
+    const cabX=x;
+    ctx.beginPath();
+    ctx.moveTo(cabX+cabW-8, y+10);
+    ctx.lineTo(cabX+4, y+10);
+    ctx.quadraticCurveTo(cabX, y+10, cabX, y+30);
+    ctx.lineTo(cabX, y+th-10);
+    ctx.lineTo(cabX+cabW-8, y+th-10);
+    ctx.fill(); ctx.stroke();
+
+    // Window
+    ctx.fillStyle='#000';
+    ctx.beginPath(); ctx.rect(cabX+8, y+14, 30, 20); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.3)';
+    ctx.beginPath(); ctx.rect(cabX+10, y+16, 8, 6); ctx.fill();
+
+    // Exhaust (left side since cab faces right)
+    ctx.strokeStyle='#000'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(cabX+10, y+10); ctx.lineTo(cabX+10, y-6); ctx.stroke();
+    if(speed > 0.5) {
+      ctx.fillStyle=`rgba(0,0,0,${0.12+Math.random()*0.08})`;
+      ctx.beginPath();
+      ctx.arc(cabX+10+(Math.random()-0.5)*4, y-6-Math.random()*8, 4+Math.random()*4, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Wheels
+    wheelAngle -= speed * 0.09; // spinning backwards (moving right)
+    [x+tw-25, x+cabW+16, x+18].forEach(wx=>{
+      ctx.fillStyle='#000';
+      ctx.beginPath(); ctx.arc(wx, wheelY, wheelR, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(wx, wheelY, wheelR*0.55, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#000'; ctx.lineWidth=2;
+      for(let s=0;s<4;s++){
+        const a=wheelAngle+s*Math.PI/2;
+        ctx.beginPath();
+        ctx.moveTo(wx+Math.cos(a)*wheelR*0.2, wheelY+Math.sin(a)*wheelR*0.2);
+        ctx.lineTo(wx+Math.cos(a)*wheelR*0.5, wheelY+Math.sin(a)*wheelR*0.5);
+        ctx.stroke();
+      }
+      ctx.fillStyle='#000';
+      ctx.beginPath(); ctx.arc(wx,wheelY,3,0,Math.PI*2); ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  function drawRope() {
+    if(ropePoints.length < 2) return;
+    ctx.save();
+    ctx.strokeStyle='#000'; ctx.lineWidth=2.5; ctx.lineCap='round';
+    ctx.beginPath();
+    ctx.moveTo(ropePoints[0].x, ropePoints[0].y);
+    for(let i=1;i<=ROPE_SEGS;i++) ctx.lineTo(ropePoints[i].x, ropePoints[i].y);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawParticles() {
+    particles.forEach(p=>{
+      ctx.save(); ctx.globalAlpha=p.life*0.4; ctx.fillStyle='#888';
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); ctx.restore();
+    });
+  }
+
+  let hasShaken = false;
+
+  function frame(ts) {
+    if(!startTime) startTime = ts;
+
+    if(shakeDecay > 0){ shakeX=(Math.random()-0.5)*shakeDecay; shakeY=(Math.random()-0.5)*shakeDecay; shakeDecay*=0.82; }
+    else { shakeX=0; shakeY=0; }
+
+    ctx.save();
+    ctx.translate(shakeX, shakeY);
+    ctx.clearRect(-10,-10,W+20,H+20);
+
+    // Ground line
+    ctx.strokeStyle='#000'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(0,groundY+16); ctx.lineTo(W,groundY+16); ctx.stroke();
+
+    let speed = 0;
+
+    if(phase === 'enter') {
+      // Truck drives in from right, decelerates to parkedX
+      const elapsed = ts - startTime;
+      const enterDuration = duration * 0.38;
+      const p = Math.min(elapsed / enterDuration, 1);
+      const ease = easeOutCubic(p);
+      truckX = enterX + (parkedX - enterX) * ease;
+      speed  = Math.abs((parkedX - enterX) / enterDuration * 60 * (1 - ease));
+
+      if(!hasShaken && p > 0.92) { hasShaken=true; triggerShake(10); }
+
+      if(p >= 1) {
+        phase      = 'pause';
+        pauseStart = ts;
+        hasShaken  = false;
+        triggerShake(6);
+      }
+    }
+    else if(phase === 'pause') {
+      truckX = parkedX;
+      speed  = 0;
+      if(ts - pauseStart >= pauseMs) { phase = 'pull'; startTime = ts; }
+    }
+    else if(phase === 'pull') {
+      // Truck and page both slide off right
+      const elapsed = ts - startTime;
+      const p = Math.min(elapsed / (duration * 0.62), 1);
+      const ease = easeInOutCubic(p);
+      truckX = parkedX + (exitX - parkedX) * ease;
+      speed  = (exitX - parkedX) / duration * 60;
+
+      if(!hasShaken && p > 0.06) { hasShaken=true; triggerShake(8); }
+
+      // Page follows, offset slightly behind the truck
+      const pageOffset = Math.max(0, truckX - parkedX - 40);
+      pageEl.style.transform = `translateX(${pageOffset}px)`;
+      pageEl.style.clipPath   = `inset(0 0 0 0)`;   // ensure it's visible while sliding
+
+      if(p < 0.95 && Math.random() < 0.4) {
+        spawnDust(truckX + truckW - 20, groundY + 12, Math.min(p*3+0.5, 2));
+      }
+
+      if(p >= 1) {
+        canvas.style.display = 'none';
+        onComplete();
+        ctx.restore();
+        return;
+      }
+    }
+
+    // Particles
+    for(let i=particles.length-1;i>=0;i--){
+      const p2=particles[i];
+      p2.x+=p2.vx; p2.y+=p2.vy; p2.vy+=0.06;
+      p2.life-=p2.decay; p2.r*=0.97;
+      if(p2.life<=0) particles.splice(i,1);
+    }
+
+    // Rope: truck front → right edge of page (page is sliding away)
+    const ropeTruckX = truckX;                    // front of cab
+    const ropeTruckY = groundY - truckH + 38;
+    const ropePageX  = phase === 'pull'
+      ? Math.min(W, parkedX - 40 + Math.max(0, truckX - parkedX - 40))
+      : W;
+    const ropePageY  = groundY - 30;
+    updateRope(ropeTruckX, ropeTruckY, ropePageX, ropePageY);
+
+    // Vertical leading edge of page
+    if(ropePageX < W + 20) {
+      ctx.save();
+      ctx.strokeStyle='#000'; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.moveTo(ropePageX, 0); ctx.lineTo(ropePageX, H); ctx.stroke();
+      ctx.fillStyle='#000';
+      ctx.beginPath(); ctx.arc(ropePageX, ropePageY, 5, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    drawParticles();
+    drawRope();
+    drawTruck(truckX, groundY - truckH, speed);
+    ctx.restore();
+    requestAnimationFrame(frame);
+  }
+
+  setTimeout(()=>requestAnimationFrame(frame), TIMING.truckRevDelay);
+}
+
+
 // ── BACK TO NAV ──
 function initBackToNav(pageEl) {
   // Create tooltip
@@ -857,37 +1136,33 @@ function initBackToNav(pageEl) {
     document.removeEventListener('click', goBack);
     tip.remove();
 
-    // Fade out the page and footer together
-    pageEl.style.transition = `opacity ${TIMING.backPageFadeDuration}ms ease`;
-    pageEl.style.opacity = '0';
+    // Hide footer immediately
     const _ffb = document.getElementById('foot-footer');
-    if(_ffb) { _ffb.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`; _ffb.style.opacity='0'; }
-    setTimeout(()=>{
+    if(_ffb) { _ffb.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`; _ffb.style.opacity='0'; setTimeout(()=>{ _ffb.style.display='none'; }, TIMING.footerFadeOutDuration); }
+
+    // Reverse truck wipe — matches the energy of the forward transition
+    launchReverseTruck(pageEl, ()=>{
       pageEl.remove();
 
-      // Restore scene (it was hidden via display:none)
+      // Restore scene
       const scene = document.getElementById('scene');
       scene.style.removeProperty('display');
-      // scene already has .visible class from before — just make sure
       scene.classList.add('visible');
 
-      // Reset all nav buttons — clear all inline styles cleanly
+      // Reset nav buttons
       const nav = document.getElementById('nav-wrap');
       document.querySelectorAll('.nav-btn').forEach(btn=>{
         btn.classList.remove('fade-out', 'appeared');
-        // Remove only transform/opacity/display inline styles, not --r
         btn.style.removeProperty('transform');
         btn.style.removeProperty('opacity');
         btn.style.removeProperty('display');
         btn.style.removeProperty('transition');
       });
 
-      // Hide nav without fighting CSS class transitions
       nav.style.opacity = '0';
       nav.style.pointerEvents = 'none';
-      nav.classList.add('visible'); // keep it in flow, just invisible via inline
+      nav.classList.add('visible');
 
-      // Small frame delay then pop buttons in
       requestAnimationFrame(()=>{
         nav.style.removeProperty('opacity');
         nav.style.removeProperty('pointer-events');
@@ -896,11 +1171,10 @@ function initBackToNav(pageEl) {
           setTimeout(()=>btn.classList.add('appeared'), i*TIMING.backBtnStagger + TIMING.backBtnStaggerOffset);
         });
         setTimeout(bindNav, TIMING.backNavReturnDelay);
-        // Fade footer back in with nav
         const _ffr = document.getElementById('foot-footer');
         if(_ffr) { _ffr.style.display=''; setTimeout(()=>{ _ffr.style.transition=`opacity ${TIMING.footerFadeInDuration}ms ease`; _ffr.style.opacity='1'; }, TIMING.backFooterDelay); }
       });
-    }, TIMING.backNavReturnDelay);
+    });
   }
 
   // Small delay so the page-reveal click doesn't immediately trigger goBack
@@ -912,7 +1186,18 @@ function initFoot() {
   const fc = document.getElementById('foot-canvas');
   if(!fc) return;
   const cx = fc.getContext('2d');
-  const W = fc.width, H = fc.height;
+
+  // Scale canvas for HiDPI/Retina displays — keeps drawing coords at logical pixels
+  // while the backing store is at physical resolution (prevents blurriness).
+  const dpr = window.devicePixelRatio || 1;
+  const logicalW = 100, logicalH = 80;
+  fc.width  = logicalW * dpr;
+  fc.height = logicalH * dpr;
+  fc.style.width  = logicalW + 'px';
+  fc.style.height = logicalH + 'px';
+  cx.scale(dpr, dpr);
+
+  const W = logicalW, H = logicalH;
 
   // phases: idle | wiggle | flip-to-back | showing-back | flip-to-front
   let phase = 'idle';
@@ -1016,9 +1301,27 @@ function initFoot() {
   let flipBackTimer = null;
 
   let lastTs = null;
+  // Loop pause/resume — avoids burning RAF cycles when tab is hidden
+  let loopPaused = false;
+  let rafId = null;
+
+  function pauseLoop()  { loopPaused = true;  if(rafId) { cancelAnimationFrame(rafId); rafId = null; } }
+  function resumeLoop() { if(!loopPaused) return; loopPaused = false; lastTs = null; rafId = requestAnimationFrame(loop); }
+
+  // Pause when tab is hidden, resume when visible again
+  document.addEventListener('visibilitychange', () => {
+    document.hidden ? pauseLoop() : resumeLoop();
+  });
+
+  // Pause when canvas scrolls out of view
+  if(typeof IntersectionObserver !== 'undefined') {
+    new IntersectionObserver(([entry]) => {
+      entry.isIntersecting ? resumeLoop() : pauseLoop();
+    }, { threshold: 0 }).observe(fc);
+  }
 
   function loop(ts) {
-    // Cap delta to 50ms (1 frame at 20fps) to prevent catch-up bursts
+    // Cap delta to 50ms (1 frame at 20fps) to prevent catch-up bursts after pause
     const dt = lastTs ? Math.min((ts - lastTs) / (1000/60), 3) : 1;
     lastTs = ts;
 
@@ -1075,7 +1378,7 @@ function initFoot() {
     }
 
     cx.globalAlpha = 1;
-    requestAnimationFrame(loop);
+    rafId = requestAnimationFrame(loop);
   }
 
   function scheduleFlipBack() {
@@ -1087,7 +1390,7 @@ function initFoot() {
     }, 2500);
   }
 
-  loop();
+  rafId = requestAnimationFrame(loop);
 
   fc.style.cursor = 'pointer';
   fc.addEventListener('mouseenter', () => {
