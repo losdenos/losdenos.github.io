@@ -255,13 +255,93 @@ function bindCreativeButton() {
   fresh.addEventListener('click', () => selectCreativeMode());
 }
 
+// ── BUTTON NUDGE SCHEDULER ──
+let _nudgeTimer = null;
+
+function _nudgeWrap(wrap, holdMs = 1400) {
+  // Don't nudge if user is hovering (desktop) — would fight the CSS hover state
+  if(wrap.matches(':hover')) return;
+
+  // Show tooltip via class
+  wrap.classList.add('nudging');
+  setTimeout(() => wrap.classList.remove('nudging'), holdMs);
+
+  // Animate the button with Web Animations API so the CSS `animation` property
+  // (fadeInUp) is never touched and can't restart when we clean up.
+  const btn = wrap.querySelector('.mode-btn');
+  if(!btn) return;
+  btn.animate(
+    [
+      { transform: 'translateY(0)    rotate(0deg)' },
+      { transform: 'translateY(-7px) rotate(-2deg)' },
+      { transform: 'translateY(-3px) rotate(1.5deg)' },
+      { transform: 'translateY(-6px) rotate(-1deg)' },
+      { transform: 'translateY(-2px) rotate(0.5deg)' },
+      { transform: 'translateY(-4px) rotate(0deg)' },
+      { transform: 'translateY(0)    rotate(0deg)' },
+    ],
+    { duration: 700, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', fill: 'none' }
+  );
+}
+
+function _scheduleNudges(wraps) {
+  if(_nudgeTimer) clearTimeout(_nudgeTimer);
+  if(!wraps || !wraps.length) return;
+
+  function runBurst() {
+    wraps.forEach((w, i) => {
+      setTimeout(() => _nudgeWrap(w), i * 420);
+    });
+  }
+
+  // First burst fires 3.5 seconds after the selector appears
+  const firstDelay = 3500;
+  _nudgeTimer = setTimeout(() => {
+    runBurst();
+    function scheduleNext() {
+      const interval = 7000 + Math.random() * 5000; // 7–12 s
+      _nudgeTimer = setTimeout(() => {
+        runBurst();
+        scheduleNext();
+      }, interval);
+    }
+    scheduleNext();
+  }, firstDelay);
+}
+
+function _cancelNudges() {
+  if(_nudgeTimer) { clearTimeout(_nudgeTimer); _nudgeTimer = null; }
+  document.querySelectorAll('.mode-btn-wrap').forEach(w => w.classList.remove('nudging'));
+}
+
 function showModeSelector() {
   const selector = document.getElementById('mode-selector');
   selector.classList.add('visible');
   bindCreativeButton();
+
+  const wraps = Array.from(document.querySelectorAll('.mode-btn-wrap'));
+
+  // Touch devices: tap wrapper to flash tooltip
+  wraps.forEach(wrap => {
+    wrap.addEventListener('touchstart', () => {
+      wraps.forEach(w => w.classList.remove('tooltip-visible'));
+      wrap.classList.add('tooltip-visible');
+      setTimeout(() => wrap.classList.remove('tooltip-visible'), 1800);
+    }, { passive: true });
+  });
+
+  // Cancel nudges the moment the user hovers or clicks — they've seen them
+  wraps.forEach(wrap => {
+    wrap.addEventListener('mouseenter', _cancelNudges);
+    wrap.addEventListener('click', _cancelNudges);
+    wrap.addEventListener('touchstart', _cancelNudges, { passive: true });
+  });
+
+  _scheduleNudges(wraps);
 }
 
 function selectCreativeMode() {
+  _cancelNudges();
   const selector = document.getElementById('mode-selector');
   selector.style.transition = 'opacity 0.4s ease';
   selector.style.opacity = '0';
@@ -344,9 +424,10 @@ function selectCreativeMode() {
     scrollCount = 0;
     if(scrollTooltip) { scrollTooltip.remove(); scrollTooltip = null; }
     _bhDestroy();
+    _destroyScrollNudge();
     
-    // Remove any existing scroll listeners
-    window.removeEventListener('wheel', onScroll);
+    // Remove any existing scroll listeners (wheel + touch)
+    _cleanupScrollListeners();
     
     showScene();
   }, 400);
@@ -622,6 +703,9 @@ function bindNav(){
   
   // Initialize scroll detection for returning to mode selector
   initScrollToModeSelector();
+
+  // Nudge hint — appears after the user idles on the nav page for a while
+  initScrollNudgeHint();
 }
 
 let scrollDetectionActive = false;
@@ -862,8 +946,11 @@ function onScroll(e) {
     }
 
     const remaining = SCROLL_THRESHOLD - scrollCount;
+    const isTouchUX = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
     if(remaining > 0) {
-      scrollTooltip.textContent = `Scroll ${remaining} more time${remaining === 1 ? '' : 's'} to enter the black hole`;
+      scrollTooltip.textContent = isTouchUX
+        ? `Swipe up ${remaining} more time${remaining === 1 ? '' : 's'} to enter the black hole`
+        : `Scroll ${remaining} more time${remaining === 1 ? '' : 's'} to enter the black hole`;
     }
     scrollTooltip.style.opacity = '1';
 
@@ -883,11 +970,108 @@ function onScroll(e) {
 
 }
 
+// ── TOUCH SWIPE-UP for black hole (mirrors wheel behaviour) ──
+let _touchStartY = null;
+let _touchStartX = null;
+const SWIPE_THRESHOLD_PX = 40; // min vertical movement per swipe gesture
+
+function onTouchStart(e) {
+  if(!scrollDetectionActive) return;
+  if(e.touches.length !== 1) return;
+  _touchStartY = e.touches[0].clientY;
+  _touchStartX = e.touches[0].clientX;
+}
+
+function onTouchEnd(e) {
+  if(!scrollDetectionActive) return;
+  if(_touchStartY === null) return;
+  if(e.changedTouches.length !== 1) { _touchStartY = null; return; }
+
+  const dy = _touchStartY - e.changedTouches[0].clientY; // positive = swiped up
+  const dx = Math.abs(e.changedTouches[0].clientX - _touchStartX);
+  _touchStartY = null;
+  _touchStartX = null;
+
+  // Only count predominantly-vertical upward swipes
+  if(dy < SWIPE_THRESHOLD_PX || dx > dy * 0.8) return;
+
+  // Reuse the same onScroll logic via a synthetic-like call
+  onScroll({ _touch: true });
+}
+
 function initScrollToModeSelector() {
   scrollDetectionActive = true;
   lastScrollTime = 0;
   scrollCount = 0;
   window.addEventListener('wheel', onScroll, { passive: true });
+  window.addEventListener('touchstart', onTouchStart, { passive: true });
+  window.addEventListener('touchend', onTouchEnd, { passive: true });
+}
+
+// Also clean up touch listeners wherever wheel is removed
+const _origRemoveScroll = window.removeEventListener.bind(window);
+function _cleanupScrollListeners() {
+  window.removeEventListener('wheel', onScroll);
+  window.removeEventListener('touchstart', onTouchStart);
+  window.removeEventListener('touchend', onTouchEnd);
+}
+
+// ── SCROLL NUDGE HINT ──
+// Shown in the nav page after the user idles for a while,
+// prompting them to scroll/swipe up to go back to the mode selector.
+let _scrollNudgeEl = null;
+let _scrollNudgeIdleTimer = null;
+let _scrollNudgeRepeatTimer = null;
+
+function _destroyScrollNudge() {
+  if(_scrollNudgeIdleTimer)  { clearTimeout(_scrollNudgeIdleTimer);  _scrollNudgeIdleTimer  = null; }
+  if(_scrollNudgeRepeatTimer){ clearTimeout(_scrollNudgeRepeatTimer); _scrollNudgeRepeatTimer = null; }
+  if(_scrollNudgeEl) {
+    _scrollNudgeEl.classList.remove('visible');
+    // Remove from DOM after fade-out transition
+    setTimeout(() => { if(_scrollNudgeEl) { _scrollNudgeEl.remove(); _scrollNudgeEl = null; } }, 700);
+  }
+}
+
+function _showScrollNudge() {
+  if(!_scrollNudgeEl) return;
+  _scrollNudgeEl.classList.add('visible');
+  // Auto-hide after 4 seconds, then re-show periodically
+  _scrollNudgeRepeatTimer = setTimeout(() => {
+    if(!_scrollNudgeEl) return;
+    _scrollNudgeEl.classList.remove('visible');
+    // Schedule next appearance
+    _scrollNudgeRepeatTimer = setTimeout(() => _showScrollNudge(), 5000 + Math.random() * 3000);
+  }, 4000);
+}
+
+function initScrollNudgeHint() {
+  _destroyScrollNudge(); // clean up any previous instance
+
+  const isTouchUX = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  const label = isTouchUX ? 'Swipe up to go back' : 'Scroll up to go back';
+
+  const el = document.createElement('div');
+  el.id = 'scroll-nudge';
+  el.innerHTML = `
+    <div id="scroll-nudge-arrow2"></div>
+    <div id="scroll-nudge-arrow"></div>
+    <div id="scroll-nudge-text">${label}</div>
+  `;
+  document.body.appendChild(el);
+  _scrollNudgeEl = el;
+
+  // Show after 8 s of the user sitting idle on the nav page
+  _scrollNudgeIdleTimer = setTimeout(_showScrollNudge, 8000);
+
+  // Dismiss immediately if the user starts interacting with the scroll gesture
+  const dismiss = () => _destroyScrollNudge();
+  window.addEventListener('wheel',      dismiss, { once: true, passive: true });
+  window.addEventListener('touchstart', dismiss, { once: true, passive: true });
+  // Also dismiss if they click a nav button
+  document.querySelectorAll('.nav-btn').forEach(b =>
+    b.addEventListener('click', dismiss, { once: true })
+  );
 }
 
 // ── WARP JUMP — black hole swallows screen, then flashing stars ──
@@ -1030,6 +1214,8 @@ function playWarpJump(onComplete) {
 
 function returnToModeSelector() {
   scrollDetectionActive = false;
+  _cleanupScrollListeners();
+  _destroyScrollNudge();
   
   const scene = document.getElementById('scene');
   const footer = document.getElementById('foot-footer');
@@ -1081,6 +1267,14 @@ function returnToModeSelector() {
       selector.style.opacity = '0';
       selector.classList.add('visible');
       bindCreativeButton();
+      // Re-attach touch listeners and restart nudge scheduler
+      const _rWraps = Array.from(document.querySelectorAll('.mode-btn-wrap'));
+      _rWraps.forEach(wrap => {
+        wrap.addEventListener('mouseenter', _cancelNudges);
+        wrap.addEventListener('click', _cancelNudges);
+        wrap.addEventListener('touchstart', _cancelNudges, { passive: true });
+      });
+      _scheduleNudges(_rWraps);
 
       requestAnimationFrame(() => {
         selector.style.transition = 'opacity 0.5s ease';
@@ -1521,11 +1715,23 @@ function launchTruckCanvas(page='about') {
           _ff2.style.transition = `transform 0.55s cubic-bezier(0.34,1.56,0.64,1)`;
           setTimeout(()=>{
             _ff2.classList.add('toes-only');
-            // Hover to pop out / retract
+            // Hover to pop out / retract (mouse)
             _ff2._toesEnter = () => { _ff2.classList.add('peeked'); };
             _ff2._toesLeave = () => { _ff2.classList.remove('peeked'); };
             _ff2.addEventListener('mouseenter', _ff2._toesEnter);
             _ff2.addEventListener('mouseleave', _ff2._toesLeave);
+            // Touch: tap the toes strip to toggle peek open/close
+            _ff2._toesTouch = (e) => {
+              // Only toggle if tapping the footer itself (not a link/button inside)
+              const isPeeked = _ff2.classList.contains('peeked');
+              if(!isPeeked) {
+                _ff2.classList.add('peeked');
+              } else if(!e.target.closest('a, [id="email-link"]')) {
+                // Second tap on background closes it; tapping a link lets it through
+                _ff2.classList.remove('peeked');
+              }
+            };
+            _ff2.addEventListener('touchstart', _ff2._toesTouch, { passive: true });
           }, TIMING.footerFadeInDelay);
         }
         ctx.restore();
@@ -1804,18 +2010,19 @@ let backNavActive = false; // guard against double-activation
 function initBackToNav(pageEl) {
   if(backNavActive) return;
   backNavActive = true;
-  // Create tooltip
+  // Create tooltip — use touch-aware label
+  const isTouchDevice = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
   const tip = document.createElement('div');
   tip.id = 'back-tooltip';
-  tip.textContent = 'Click anywhere to go back';
+  tip.textContent = isTouchDevice ? 'Tap anywhere to go back' : 'Click anywhere to go back';
   document.body.appendChild(tip);
 
-  // Follow mouse
+  // Follow mouse (desktop only; on touch it stays centred via CSS)
   function onMove(e) {
     tip.style.left = e.clientX + 'px';
     tip.style.top  = e.clientY + 'px';
   }
-  document.addEventListener('mousemove', onMove);
+  if(!isTouchDevice) document.addEventListener('mousemove', onMove);
 
   // Show it
   requestAnimationFrame(()=>tip.classList.add('visible'));
@@ -1833,15 +2040,16 @@ function initBackToNav(pageEl) {
     if(footer && footer.contains(e.target)) return;
     
     clearTimeout(fadeTimer);
-    document.removeEventListener('mousemove', onMove);
+    if(!isTouchDevice) document.removeEventListener('mousemove', onMove);
     document.removeEventListener('click', goBack);
     tip.remove();
 
-    // Clean up toes-only mode and its hover listeners
+    // Clean up toes-only mode and its hover/touch listeners
     const _ffb = document.getElementById('foot-footer');
     if(_ffb) {
       if(_ffb._toesEnter) { _ffb.removeEventListener('mouseenter', _ffb._toesEnter); delete _ffb._toesEnter; }
       if(_ffb._toesLeave) { _ffb.removeEventListener('mouseleave', _ffb._toesLeave); delete _ffb._toesLeave; }
+      if(_ffb._toesTouch) { _ffb.removeEventListener('touchstart', _ffb._toesTouch); delete _ffb._toesTouch; }
       _ffb.classList.remove('toes-only','peeked');
       _ffb.style.transition=`opacity ${TIMING.footerFadeOutDuration}ms ease`;
       _ffb.style.opacity='0';
@@ -2558,4 +2766,21 @@ function initFoot() {
   fc.addEventListener('click', () => {
     if(phase === 'wiggle' || phase === 'idle') { phase='flip-to-back'; flipAngle=0; wiggleT=0; }
   });
+  // Touch: tap to flip to back (shows links), tap again to flip back to front
+  fc.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // prevent ghost click
+    if(phase === 'idle' || phase === 'wiggle') {
+      isHovered = true;
+      clearTimeout(flipBackTimer);
+      phase = 'flip-to-back'; flipAngle = 0; wiggleT = 0;
+    } else if(phase === 'showing-back') {
+      isHovered = false;
+      scheduleFlipBack();
+    } else if(phase === 'flip-to-front') {
+      isHovered = true;
+      clearTimeout(flipBackTimer);
+      phase = 'showing-back'; flipAngle = 0;
+      if(links) links.classList.add('visible');
+    }
+  }, { passive: false });
 }
