@@ -247,14 +247,18 @@ function scaleKeyboard() {
 }
 
 // ── MODE SELECTOR ──
+function bindCreativeButton() {
+  const btn = document.getElementById('mode-creative');
+  // Clone-replace to wipe any previously stacked listeners
+  const fresh = btn.cloneNode(true);
+  btn.parentNode.replaceChild(fresh, btn);
+  fresh.addEventListener('click', () => selectCreativeMode());
+}
+
 function showModeSelector() {
   const selector = document.getElementById('mode-selector');
   selector.classList.add('visible');
-  
-  // Bind creative button
-  document.getElementById('mode-creative').addEventListener('click', () => {
-    selectCreativeMode();
-  });
+  bindCreativeButton();
 }
 
 function selectCreativeMode() {
@@ -264,6 +268,86 @@ function selectCreativeMode() {
   
   setTimeout(() => {
     selector.style.display = 'none';
+    
+    // Reset scene and related elements
+    const scene = document.getElementById('scene');
+    const trainSwitch = document.getElementById('train-switch-wrap');
+    const footer = document.getElementById('foot-footer');
+    
+    // Reset scene — wipe ALL inline styles (clears poof transform/opacity/transition)
+    scene.style.cssText = '';
+    scene.classList.remove('visible');
+    
+    // Reset switch (clear poof animation transform/transition)
+    if(trainSwitch) {
+      trainSwitch.style.cssText = '';
+      trainSwitch.classList.remove('visible');
+    }
+    
+    // Reset footer (clear poof animation transform/transition)
+    if(footer) {
+      footer.style.cssText = '';
+      footer.classList.remove('toes-only', 'peeked');
+    }
+    
+    // Reset keyboard wrap (morphToNav hides these with inline display:none)
+    const kb = document.getElementById('keyboard-wrap');
+    if(kb) {
+      kb.style.removeProperty('display');
+      kb.classList.remove('hiding');
+    }
+    const disp = document.getElementById('typed-display');
+    if(disp) disp.style.removeProperty('display');
+    const cursor = document.getElementById('cursor');
+    if(cursor) cursor.style.removeProperty('display');
+
+    // Reset all keyboard keys
+    document.querySelectorAll('#keyboard-wrap .key').forEach(key => {
+      key.classList.remove('appeared', 'pressed', 'start-glow');
+      key.style.removeProperty('--r');
+    });
+    
+    // Reset nav buttons
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+      btn.classList.remove('appeared', 'fade-out');
+      btn.style.removeProperty('transform');
+      btn.style.removeProperty('opacity');
+      btn.style.removeProperty('display');
+      btn.style.removeProperty('--r');
+    });
+    
+    // Reset typed display
+    const typedDisplay = document.getElementById('typed-display');
+    if(typedDisplay) {
+      typedDisplay.classList.remove('hiding');
+      typedDisplay.style.removeProperty('opacity');
+    }
+    
+    const typedText = document.getElementById('typed-text');
+    if(typedText) typedText.textContent = '';
+    
+    // Reset nav wrap
+    const navWrap = document.getElementById('nav-wrap');
+    if(navWrap) {
+      navWrap.classList.remove('visible');
+      navWrap.style.removeProperty('opacity');
+      navWrap.style.removeProperty('pointer-events');
+    }
+    
+    // Reset global states
+    backNavActive = false;
+    trainSwitchInited = false; // allow dark-mode switch to re-init
+    scrollDetectionActive = false;
+    lastScrollTime = 0;
+    if(scrollDetectionTimeout) clearTimeout(scrollDetectionTimeout);
+    scrollDetectionTimeout = null;
+    scrollCount = 0;
+    if(scrollTooltip) { scrollTooltip.remove(); scrollTooltip = null; }
+    _bhDestroy();
+    
+    // Remove any existing scroll listeners
+    window.removeEventListener('wheel', onScroll);
+    
     showScene();
   }, 400);
 }
@@ -535,6 +619,477 @@ function bindNav(){
     _navHandlers[id] = _navHandler(page);
     el.addEventListener('click', _navHandlers[id]);
   });
+  
+  // Initialize scroll detection for returning to mode selector
+  initScrollToModeSelector();
+}
+
+let scrollDetectionActive = false;
+let scrollTooltip = null;
+let lastScrollTime = 0;
+let scrollDetectionTimeout = null;
+let scrollCount = 0;
+const SCROLL_THRESHOLD = 5;
+
+// ── BLACK HOLE + WARP EFFECT ──
+let _bhRaf = null;
+let _bhProgress = 0;      // 0..1, current animated value
+let _bhTarget   = 0;      // 0..1, target driven by scrollCount
+let _bhAnimating = false;
+
+function getPoofEls() {
+  return [
+    document.getElementById('scene'),
+    document.getElementById('foot-footer'),
+    document.getElementById('train-switch-wrap'),
+  ].filter(Boolean);
+}
+
+function _bhEase(t) { return t < 0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; }
+
+// ── Update SVG warp filter at given progress ──
+let _warpTime = 0;
+function _updateWarp(progress) {
+  const turb = document.getElementById('warp-turbulence');
+  const disp = document.getElementById('warp-displace');
+  if(!turb || !disp) return;
+
+  // Slower time evolution — waves move lazily
+  _warpTime += 0.004;
+  // Lower base frequency = bigger, broader waves; gentle rise with progress
+  const freq = 0.0018 + progress * 0.008;
+  turb.setAttribute('baseFrequency', `${freq.toFixed(5)} ${(freq * 0.6).toFixed(5)}`);
+  // Shift seed slowly so the distortion drifts rather than churning
+  turb.setAttribute('seed', Math.floor(_warpTime * 3) % 99);
+
+  // Softer max displacement — feels like space bending, not a blender
+  const dispScale = progress * 90;
+  disp.setAttribute('scale', dispScale.toFixed(1));
+
+  getPoofEls().forEach(el => {
+    el.style.filter = progress > 0.02 ? 'url(#blackhole-warp)' : '';
+  });
+}
+
+// ── Spinning accretion disk angle ──
+let _diskAngle = 0;
+
+// ── Draw black hole canvas at given progress (0=gone, 1=fully open) ──
+// (Override the earlier definition to add disk spin)
+function _drawBlackHole(progress) {
+  const cv = document.getElementById('blackhole-canvas');
+  if(!cv) return;
+  cv.width  = window.innerWidth;
+  cv.height = window.innerHeight;
+  const cx = cv.getContext('2d');
+  const cx0 = window.innerWidth  / 2;
+  const cy0 = window.innerHeight / 2;
+  const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.32 * progress;
+
+  cx.clearRect(0, 0, cv.width, cv.height);
+  if(progress <= 0.01) return;
+
+  // Vignette — darkens the whole screen as the black hole grows
+  const vigR = Math.max(cv.width, cv.height) * 0.85;
+  const vig = cx.createRadialGradient(cx0, cy0, vigR * 0.05, cx0, cy0, vigR);
+  const vigAlpha = Math.pow(progress, 0.55) * 0.97;
+  vig.addColorStop(0,   `rgba(0,0,0,0)`);
+  vig.addColorStop(0.35, `rgba(0,0,0,${vigAlpha * 0.55})`);
+  vig.addColorStop(1,   `rgba(0,0,0,${vigAlpha})`);
+  cx.fillStyle = vig;
+  cx.fillRect(0, 0, cv.width, cv.height);
+
+  // Event horizon — pure black circle
+  cx.fillStyle = '#000';
+  cx.beginPath();
+  cx.arc(cx0, cy0, maxR * 0.68, 0, Math.PI * 2);
+  cx.fill();
+
+  // Photon ring — bright thin rim with rotating shimmer + bloom glow
+  const shimmer = 0.75 + 0.25 * Math.sin(_diskAngle * 2.1);
+  cx.save();
+  cx.shadowColor = `rgba(255,240,180,0.9)`;
+  cx.shadowBlur  = 14 * progress;
+  const photon = cx.createRadialGradient(cx0, cy0, maxR * 0.64, cx0, cy0, maxR * 0.75);
+  photon.addColorStop(0,   'rgba(0,0,0,0)');
+  photon.addColorStop(0.5, `rgba(255,240,180,${0.9 * progress * shimmer})`);
+  photon.addColorStop(1,   'rgba(0,0,0,0)');
+  cx.fillStyle = photon;
+  cx.beginPath();
+  cx.arc(cx0, cy0, maxR * 0.75, 0, Math.PI * 2);
+  cx.fill();
+  cx.restore();
+
+  // Inner black disk (on top of photon ring)
+  cx.fillStyle = '#000';
+  cx.beginPath();
+  cx.arc(cx0, cy0, maxR * 0.62, 0, Math.PI * 2);
+  cx.fill();
+}
+
+// ── Animate black hole toward target progress ──
+function _bhLoop() {
+  const diff = _bhTarget - _bhProgress;
+  if(Math.abs(diff) < 0.005) {
+    _bhProgress = _bhTarget;
+  } else {
+    // Slow drift toward target (0.05 forward, 0.03 back — very languid)
+    const speed = _bhTarget > _bhProgress ? 0.05 : 0.03;
+    _bhProgress += diff * speed;
+  }
+
+  // Advance disk spin — slows when progress is low
+  _diskAngle += 0.012 * (0.3 + _bhProgress * 0.7);
+
+  _drawBlackHole(_bhProgress);
+  _updateWarp(_bhProgress);
+
+  if(Math.abs(_bhTarget - _bhProgress) > 0.005 || _bhProgress > 0.005) {
+    _bhRaf = requestAnimationFrame(_bhLoop);
+  } else {
+    // Fully settled at 0 — hide canvas and remove filter
+    _bhProgress = 0;
+    _drawBlackHole(0);
+    _updateWarp(0);
+    getPoofEls().forEach(el => { el.style.filter = ''; });
+    const cv = document.getElementById('blackhole-canvas');
+    if(cv) cv.style.display = 'none';
+    _bhAnimating = false;
+    _bhRaf = null;
+  }
+}
+
+function _bhSetTarget(t) {
+  _bhTarget = Math.max(0, Math.min(1, t));
+  const cv = document.getElementById('blackhole-canvas');
+  if(cv && _bhTarget > 0) cv.style.display = 'block';
+  if(!_bhAnimating || !_bhRaf) {
+    _bhAnimating = true;
+    _bhRaf = requestAnimationFrame(_bhLoop);
+  }
+}
+
+function _bhReset() {
+  _bhTarget = 0;
+  if(!_bhRaf) {
+    _bhAnimating = true;
+    _bhRaf = requestAnimationFrame(_bhLoop);
+  }
+}
+
+function _bhDestroy() {
+  _bhTarget = 0;
+  _bhProgress = 0;
+  _warpTime = 0;
+  if(_bhRaf) { cancelAnimationFrame(_bhRaf); _bhRaf = null; }
+  _bhAnimating = false;
+  getPoofEls().forEach(el => { el.style.filter = ''; });
+  const cv = document.getElementById('blackhole-canvas');
+  if(cv) { cv.style.display = 'none'; const cx = cv.getContext('2d'); cx.clearRect(0,0,cv.width,cv.height); }
+  const disp = document.getElementById('warp-displace');
+  if(disp) disp.setAttribute('scale', '0');
+}
+
+// Apply one poof frame: progress 0 = normal, 1 = fully poofed
+function applyPoofFrame(progress) {
+  const scale   = 1 - progress * 0.3;
+  const opacity = 1 - progress;
+  const rot     = progress * 10;
+  getPoofEls().forEach(el => {
+    el.style.transition = 'none';
+    el.style.transform  = `scale(${scale}) rotateZ(${rot}deg)`;
+    el.style.opacity    = opacity;
+  });
+  _bhSetTarget(progress);
+}
+
+// Snap everything back to normal with a springy transition
+function resetPoofState() {
+  getPoofEls().forEach(el => {
+    el.style.transition = 'transform 0.5s cubic-bezier(0.34,1.56,0.64,1), opacity 0.5s ease';
+    el.style.transform  = 'scale(1) rotateZ(0deg)';
+    el.style.opacity    = '1';
+  });
+  _bhReset();
+}
+
+function onScroll(e) {
+    if(!scrollDetectionActive) return;
+
+    const now = Date.now();
+    const timeSinceLastScroll = now - lastScrollTime;
+
+    // Reset counter if user paused more than 2 seconds
+    if(timeSinceLastScroll > 2000) {
+      scrollCount = 0;
+      resetPoofState();
+    }
+
+    scrollCount++;
+    lastScrollTime = now;
+
+    // Drive poof animation frame-by-frame (don't apply on final step — returnToModeSelector handles that)
+    if(scrollCount < SCROLL_THRESHOLD) {
+      applyPoofFrame(scrollCount / SCROLL_THRESHOLD);
+    }
+
+    // Show/update progress tooltip
+    if(!scrollTooltip) {
+      scrollTooltip = document.createElement('div');
+      scrollTooltip.style.cssText = `
+        position: fixed;
+        pointer-events: none;
+        z-index: 999;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        font-weight: bold;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        background: var(--fg);
+        color: var(--bg);
+        padding: 8px 14px;
+        border-radius: 4px;
+        white-space: nowrap;
+        opacity: 0;
+        transform: translate(-50%, 0);
+        transition: opacity 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        bottom: 120px;
+        left: 50%;
+        top: auto;
+      `;
+      document.body.appendChild(scrollTooltip);
+    }
+
+    const remaining = SCROLL_THRESHOLD - scrollCount;
+    if(remaining > 0) {
+      scrollTooltip.textContent = `Scroll ${remaining} more time${remaining === 1 ? '' : 's'} to enter the black hole`;
+    }
+    scrollTooltip.style.opacity = '1';
+
+    if(scrollDetectionTimeout) clearTimeout(scrollDetectionTimeout);
+    scrollDetectionTimeout = setTimeout(() => {
+      scrollTooltip.style.opacity = '0';
+      scrollCount = 0;
+      resetPoofState();
+    }, 2000);
+
+    // Trigger once threshold is reached
+    if(scrollCount >= SCROLL_THRESHOLD) {
+      scrollCount = 0;
+      returnToModeSelector();
+      return;
+    }
+
+}
+
+function initScrollToModeSelector() {
+  scrollDetectionActive = true;
+  lastScrollTime = 0;
+  scrollCount = 0;
+  window.addEventListener('wheel', onScroll, { passive: true });
+}
+
+// ── WARP JUMP — black hole swallows screen, then flashing stars ──
+function playWarpJump(onComplete) {
+  // Cancel existing BH loop — we take over
+  if(_bhRaf) { cancelAnimationFrame(_bhRaf); _bhRaf = null; }
+  _bhAnimating = false;
+
+  const cv = document.getElementById('blackhole-canvas');
+  if(!cv) { onComplete(); return; }
+  cv.style.display = 'block';
+  cv.width  = window.innerWidth;
+  cv.height = window.innerHeight;
+  const cx  = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const cx0 = W / 2, cy0 = H / 2;
+  // Furthest corner distance — radius needed to cover the whole screen
+  const fullR = Math.sqrt(cx0*cx0 + cy0*cy0) * 1.05;
+
+  // Black hole starts at its current drawn size (progress=1 → maxR = min(W,H)*0.32)
+  const startR = Math.min(W, H) * 0.32;
+
+  const SWALLOW_MS = 600;  // time for BH to expand and fill screen
+  const STAR_COUNT = 80;
+  const FLASH_MS   = 60;   // star re-randomise interval
+  const TOTAL_MS   = 1100; // star phase duration
+  const FADE_MS    = 350;  // final fade-out
+
+  // ── Phase 1: swallow ──
+  let swallowStart = null;
+
+  function swallowFrame(ts) {
+    if(!swallowStart) swallowStart = ts;
+    const t = Math.min((ts - swallowStart) / SWALLOW_MS, 1);
+    // Accelerating ease — slow at first, slams shut at the end
+    const ease = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
+
+    const r = startR + (fullR - startR) * ease;
+
+    cx.clearRect(0, 0, W, H);
+
+    // Vignette still present (full alpha since we're at progress=1)
+    const vigR2 = Math.max(W, H) * 0.85;
+    const vig = cx.createRadialGradient(cx0, cy0, vigR2 * 0.05, cx0, cy0, vigR2);
+    vig.addColorStop(0,    'rgba(0,0,0,0)');
+    vig.addColorStop(0.35, 'rgba(0,0,0,0.53)');
+    vig.addColorStop(1,    'rgba(0,0,0,0.97)');
+    cx.fillStyle = vig;
+    cx.fillRect(0, 0, W, H);
+
+    // Photon ring — shrinks to nothing as BH fills screen
+    const ringAlpha = 1 - ease;
+    if(ringAlpha > 0.01) {
+      const shimmer = 0.75 + 0.25 * Math.sin(_diskAngle * 2.1);
+      _diskAngle += 0.018; // spin faster as it grows
+      cx.save();
+      cx.shadowColor = `rgba(255,240,180,0.9)`;
+      cx.shadowBlur  = 14;
+      const photon = cx.createRadialGradient(cx0, cy0, r * 0.85, cx0, cy0, r);
+      photon.addColorStop(0,   'rgba(0,0,0,0)');
+      photon.addColorStop(0.5, `rgba(255,240,180,${0.9 * shimmer * ringAlpha})`);
+      photon.addColorStop(1,   'rgba(0,0,0,0)');
+      cx.fillStyle = photon;
+      cx.beginPath();
+      cx.arc(cx0, cy0, r, 0, Math.PI * 2);
+      cx.fill();
+      cx.restore();
+    }
+
+    // The growing black disk
+    cx.fillStyle = '#000';
+    cx.beginPath();
+    cx.arc(cx0, cy0, r * 0.93, 0, Math.PI * 2);
+    cx.fill();
+
+    if(t < 1) {
+      requestAnimationFrame(swallowFrame);
+    } else {
+      // Screen is fully black — start star phase
+      cx.fillStyle = '#000';
+      cx.fillRect(0, 0, W, H);
+      startStarPhase();
+    }
+  }
+
+  requestAnimationFrame(swallowFrame);
+
+  // ── Phase 2: stars ──
+  function startStarPhase() {
+    // Draw black base on the canvas so it stays solid behind the star divs
+    cx.fillStyle = '#000';
+    cx.fillRect(0, 0, W, H);
+
+    // Star overlay sitting on top of the (now black) BH canvas
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position:fixed;inset:0;z-index:96;pointer-events:none;
+      opacity:1;transition:opacity ${FADE_MS}ms ease;
+    `;
+    document.body.appendChild(overlay);
+
+    const stars = Array.from({ length: STAR_COUNT }, () => {
+      const s = document.createElement('div');
+      s.style.cssText = `position:absolute;border-radius:50%;background:#fff;pointer-events:none;`;
+      overlay.appendChild(s);
+      return s;
+    });
+
+    function randomiseStar(s) {
+      const size = 1 + Math.random() * 3;
+      s.style.width  = size + 'px';
+      s.style.height = size + 'px';
+      s.style.left   = (Math.random() * 100) + '%';
+      s.style.top    = (Math.random() * 100) + '%';
+      s.style.opacity = (0.4 + Math.random() * 0.6).toFixed(2);
+      s.style.boxShadow = size > 2.5
+        ? `0 0 ${Math.round(size * 2)}px rgba(255,255,255,0.8)`
+        : 'none';
+    }
+
+    stars.forEach(randomiseStar);
+
+    let elapsed = 0;
+    const interval = setInterval(() => {
+      elapsed += FLASH_MS;
+      stars.forEach(s => { if(Math.random() < 0.4) randomiseStar(s); });
+      if(elapsed >= TOTAL_MS) {
+        clearInterval(interval);
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+          overlay.remove();
+          cv.style.display = 'none';
+          cx.clearRect(0, 0, W, H);
+          onComplete();
+        }, FADE_MS);
+      }
+    }, FLASH_MS);
+  }
+}
+
+function returnToModeSelector() {
+  scrollDetectionActive = false;
+  
+  const scene = document.getElementById('scene');
+  const footer = document.getElementById('foot-footer');
+  const switchWrap = document.getElementById('train-switch-wrap');
+  
+  if(scrollTooltip) {
+    scrollTooltip.remove();
+    scrollTooltip = null;
+  }
+  
+  // Poof animation - everything disappears quickly before warp jump
+  const duration = 0.35;
+  const elements = [scene, footer, switchWrap].filter(el => el);
+  
+  elements.forEach((el) => {
+    el.style.transition = `opacity ${duration}s ease, transform ${duration}s cubic-bezier(0.34,1.56,0.64,1)`;
+    el.style.opacity = '0';
+    el.style.transform = `scale(0.7) rotateZ(${Math.random() * 20 - 10}deg)`;
+  });
+
+  // After UI has poofed, run the warp-jump sequence, then show mode selector
+  setTimeout(() => {
+    playWarpJump(() => {
+      _bhDestroy();
+      // Hide nav scene and footer
+      scene.classList.remove('visible');
+      scene.style.display = 'none';
+      if(footer) {
+        footer.style.display = 'none';
+        footer.classList.remove('toes-only', 'peeked');
+      }
+      if(switchWrap) {
+        switchWrap.classList.remove('visible');
+      }
+
+      // Reset nav button styles
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('fade-out', 'appeared');
+        btn.style.removeProperty('transform');
+        btn.style.removeProperty('opacity');
+        btn.style.removeProperty('display');
+        btn.style.removeProperty('transition');
+      });
+
+      // Show mode selector with fade in
+      const selector = document.getElementById('mode-selector');
+      selector.style.display = '';
+      selector.style.transition = '';
+      selector.style.opacity = '0';
+      selector.classList.add('visible');
+      bindCreativeButton();
+
+      requestAnimationFrame(() => {
+        selector.style.transition = 'opacity 0.5s ease';
+        selector.style.opacity = '1';
+      });
+
+      backNavActive = false;
+    });
+  }, duration * 1000);
 }
 
 // ── SHARED TRUCK HELPERS ──
@@ -620,11 +1175,84 @@ function truckDrawParticles(ctx, particles) {
 }
 
 // ── ZOOM + TRUCK TRANSITION (canvas-drawn) ──
+function disassembleSwitch() {
+  const tsw = document.getElementById('train-switch-wrap');
+  const sc = document.getElementById('train-switch-canvas');
+  if(!tsw || !sc) return;
+  
+  // Disable interaction
+  sc.style.pointerEvents = 'none';
+  
+  // Animate canvas scatter/break apart
+  const keys = sc.querySelectorAll('canvas');
+  sc.style.opacity = '0';
+  sc.style.transition = 'opacity 0.3s ease';
+  
+  // Fade out label
+  const label = tsw.querySelector('#train-switch-label');
+  if(label) {
+    label.style.opacity = '0';
+    label.style.transition = 'opacity 0.3s ease';
+  }
+  
+  // Scale down and rotate on disassembly
+  tsw.style.transition = 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.35s ease';
+  tsw.style.transform = 'scale(0.7) rotateZ(15deg)';
+  tsw.style.opacity = '0';
+  
+  setTimeout(() => {
+    tsw.classList.remove('visible');
+    tsw.style.pointerEvents = 'none';
+  }, 350);
+}
+
+function reassembleSwitch() {
+  const tsw = document.getElementById('train-switch-wrap');
+  const sc = document.getElementById('train-switch-canvas');
+  if(!tsw || !sc) return;
+  
+  // Fully reset all inline styles from previous disassembly
+  tsw.style.removeProperty('opacity');
+  tsw.style.removeProperty('transform');
+  tsw.style.removeProperty('transition');
+  sc.style.removeProperty('opacity');
+  sc.style.removeProperty('transition');
+  sc.style.removeProperty('pointerEvents');
+  
+  const label = tsw.querySelector('#train-switch-label');
+  if(label) {
+    label.style.removeProperty('opacity');
+    label.style.removeProperty('transition');
+  }
+  
+  // Start as small dot
+  tsw.style.transition = 'none';
+  tsw.style.opacity = '0';
+  tsw.style.transform = 'scale(0.1) rotateZ(-20deg)';
+  tsw.classList.add('visible');
+  
+  // Trigger reflow to apply initial state
+  void tsw.offsetWidth;
+  
+  // Animate growth from dot to full size (0.4s to match nav button animation)
+  tsw.style.transition = 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1), opacity 0.4s ease';
+  tsw.style.opacity = '1';
+  tsw.style.transform = 'scale(1) rotateZ(0deg)';
+  
+  // Re-enable interaction after animation completes
+  setTimeout(() => {
+    sc.style.pointerEvents = 'all';
+  }, 400);
+}
+
 function zoomPage(page) {
   const btnId = page === 'about' ? 'btn-about' : page === 'projects' ? 'btn-projects' : 'btn-contact';
   const btn = document.getElementById(btnId);
   const others = ['btn-about','btn-projects','btn-contact'].filter(id=>id!==btnId);
   others.forEach(id=>document.getElementById(id).classList.add('fade-out'));
+
+  // Disassemble the switch
+  disassembleSwitch();
 
   const r = btn.getBoundingClientRect();
   const tx = window.innerWidth/2 - (r.left + r.width/2);
@@ -642,6 +1270,9 @@ function zoomPage(page) {
 }
 
 function launchTruckCanvas(page='about') {
+  // Disable scroll detection when entering a page
+  scrollDetectionActive = false;
+  
   const canvas = document.getElementById('truck-canvas');
   const ctx = canvas.getContext('2d');
   canvas.width = window.innerWidth;
@@ -981,8 +1612,9 @@ function launchReverseTruck(pageEl, onComplete) {
   let hasPlayedPullWhoosh = false;
   function triggerShake(mag) { shakeDecay = mag; }
 
-  // Rope: from right edge of page to front of truck cab
-  let ropePoints = truckInitRope(enterX, groundY - truckH + 38, W, groundY - 30);
+  // Rope: initially not connected, will appear when truck parks
+  let ropePoints = null;
+  let ropeConnected = false;
 
   function drawTruck(x, y, speed) {
     const tw=truckW, th=truckH;
@@ -1132,27 +1764,32 @@ function launchReverseTruck(pageEl, onComplete) {
     // Particles
     truckUpdateParticles(particles);
 
-    // Rope: truck front → right edge of page (page is sliding away)
-    const ropeTruckX = truckX;                    // front of cab
-    const ropeTruckY = groundY - truckH + 38;
-    const ropePageX  = phase === 'pull'
-      ? Math.min(W, parkedX - 40 + Math.max(0, truckX - parkedX - 40))
-      : W;
-    const ropePageY  = groundY - 30;
-    truckUpdateRope(ropePoints, ropeTruckX, ropeTruckY, ropePageX, ropePageY, ropeTargetLen);
+    // Rope: truck front → page (only appears when pulling)
+    if(phase === 'pull') {
+      // Initialize rope on first pull phase if not already done
+      if(!ropeConnected) {
+        ropePoints = truckInitRope(truckX, groundY - truckH + 38, W, groundY - 30);
+        ropeConnected = true;
+      }
+      
+      const ropeTruckX = truckX;                    // front of cab
+      const ropeTruckY = groundY - truckH + 38;
+      const ropePageX  = Math.min(W, parkedX - 40 + Math.max(0, truckX - parkedX - 40));
+      const ropePageY  = groundY - 30;
+      truckUpdateRope(ropePoints, ropeTruckX, ropeTruckY, ropePageX, ropePageY, ropeTargetLen);
 
-    // Vertical leading edge of page
-    if(ropePageX < W + 20) {
-      ctx.save();
-      ctx.strokeStyle='#000'; ctx.lineWidth=3;
-      ctx.beginPath(); ctx.moveTo(ropePageX, 0); ctx.lineTo(ropePageX, H); ctx.stroke();
-      ctx.fillStyle='#000';
-      ctx.beginPath(); ctx.arc(ropePageX, ropePageY, 5, 0, Math.PI*2); ctx.fill();
-      ctx.restore();
+      // Vertical leading edge of page
+      if(ropePageX < W + 20) {
+        ctx.save();
+        ctx.strokeStyle='#000'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(ropePageX, 0); ctx.lineTo(ropePageX, H); ctx.stroke();
+        ctx.fillStyle='#000';
+        ctx.beginPath(); ctx.arc(ropePageX, ropePageY, 5, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+
+      truckDrawRope(ctx, ropePoints);
     }
-
-    truckDrawParticles(ctx, particles);
-    truckDrawRope(ctx, ropePoints);
     drawTruck(truckX, groundY - truckH, speed);
     ctx.restore();
     requestAnimationFrame(frame);
@@ -1244,9 +1881,11 @@ function initBackToNav(pageEl) {
         // Play startup chime when returning to nav
         setTimeout(playStartupChime, TIMING.chimeDelay);
         setTimeout(bindNav, TIMING.backNavReturnDelay);
-        // Re-show train switch
+        // Re-show train switch with reassembly animation
         const tsw = document.getElementById('train-switch-wrap');
-        if(tsw) tsw.classList.add('visible');
+        if(tsw) {
+          setTimeout(() => reassembleSwitch(), TIMING.backNavReturnDelay);
+        }
         backNavActive = false; // ready for next navigation
         const _ffr = document.getElementById('foot-footer');
         if(_ffr) { _ffr.style.display=''; setTimeout(()=>{ _ffr.style.transition=`opacity ${TIMING.footerFadeInDuration}ms ease`; _ffr.style.opacity='1'; }, TIMING.backFooterDelay); }
@@ -1261,6 +1900,31 @@ function initBackToNav(pageEl) {
 // ── TRAIN SWITCH (dark mode toggle) ──
 let trainSwitchInited = false;
 let isDark = false;
+
+function playSwitchSound(isUp) {
+  try {
+    const now = audioCtx.currentTime;
+    
+    // Thocky bass click using low frequency sine
+    const osc = audioCtx.createOscillator();
+    const oscGain = audioCtx.createGain();
+    
+    osc.connect(oscGain);
+    oscGain.connect(audioCtx.destination);
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.04);
+    
+    oscGain.gain.setValueAtTime(0.2, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+    
+    osc.start(now);
+    osc.stop(now + 0.05);
+  } catch(e) {
+    // Audio context may fail on some browsers/contexts, silently continue
+  }
+}
 
 function initTrainSwitch() {
   if(trainSwitchInited) {
@@ -1344,8 +2008,13 @@ function initTrainSwitch() {
   sc.addEventListener('click', () => {
     if(busy) return;
     busy = true;
+    
+    // Play switch sound immediately
+    playSwitchSound(isDark);
+    
     leverTarget = isDark ? 0 : 1;
     if(!leverRaf) leverRaf = requestAnimationFrame(animateLever);
+    
     // Kick off the train animation
     runTrainTransition(() => {
       isDark = !isDark;
@@ -1378,9 +2047,12 @@ function runTrainTransition(onDarkToggle) {
 
   // Hide nav buttons while we animate on canvas
   btns.forEach(b => { if(b.el) b.el.style.visibility = 'hidden'; });
-  // Hide train switch temporarily
+  // Hide train switch temporarily (using CSS class for smooth animation)
   const tsw = document.getElementById('train-switch-wrap');
-  if(tsw) tsw.style.opacity = '0';
+  if(tsw) {
+    tsw.classList.remove('visible');
+    tsw.style.pointerEvents = 'none';
+  }
 
   // --- Geometry ---
   // Car sizes match button sizes: 140x56
@@ -1645,8 +2317,11 @@ function runTrainTransition(onDarkToggle) {
         ctx.clearRect(0, 0, W, H);
         // Restore nav buttons
         btns.forEach(b => { if(b.el) b.el.style.visibility = ''; });
-        // Restore train switch
-        if(tsw) tsw.style.opacity = '';
+        // Restore train switch with animation
+        if(tsw) {
+          tsw.classList.add('visible');
+          tsw.style.pointerEvents = '';
+        }
         return;
       }
     }
@@ -1658,9 +2333,12 @@ function runTrainTransition(onDarkToggle) {
 }
 
 // ── FOOT FOOTER ──
+let _footRafId = null; // module-level so re-entry can cancel the previous loop
 function initFoot() {
   const fc = document.getElementById('foot-canvas');
   if(!fc) return;
+  // Cancel any existing foot animation loop before starting a fresh one
+  if(_footRafId) { cancelAnimationFrame(_footRafId); _footRafId = null; }
   const cx = fc.getContext('2d');
 
   // Scale canvas for HiDPI/Retina displays — keeps drawing coords at logical pixels
@@ -1778,10 +2456,9 @@ function initFoot() {
   let lastTs = null;
   // Loop pause/resume — avoids burning RAF cycles when tab is hidden
   let loopPaused = false;
-  let rafId = null;
-
-  function pauseLoop()  { loopPaused = true;  if(rafId) { cancelAnimationFrame(rafId); rafId = null; } }
-  function resumeLoop() { if(!loopPaused) return; loopPaused = false; lastTs = null; rafId = requestAnimationFrame(loop); }
+  // Use module-level _footRafId so re-entry can cancel this loop
+  function pauseLoop()  { loopPaused = true;  if(_footRafId) { cancelAnimationFrame(_footRafId); _footRafId = null; } }
+  function resumeLoop() { if(!loopPaused) return; loopPaused = false; lastTs = null; _footRafId = requestAnimationFrame(loop); }
 
   // Pause when tab is hidden, resume when visible again
   document.addEventListener('visibilitychange', () => {
@@ -1853,7 +2530,7 @@ function initFoot() {
     }
 
     cx.globalAlpha = 1;
-    rafId = requestAnimationFrame(loop);
+    _footRafId = requestAnimationFrame(loop);
   }
 
   function scheduleFlipBack() {
@@ -1865,7 +2542,7 @@ function initFoot() {
     }, 2500);
   }
 
-  rafId = requestAnimationFrame(loop);
+  _footRafId = requestAnimationFrame(loop);
 
   fc.style.cursor = 'pointer';
   fc.addEventListener('mouseenter', () => {
