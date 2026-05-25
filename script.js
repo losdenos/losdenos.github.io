@@ -455,7 +455,7 @@ function showScene(){
         setTimeout(() => { emailLink.textContent = orig; emailLink.style.background=''; emailLink.style.color=''; }, TIMING.copiedResetDelay);
       };
       navigator.clipboard.writeText(EMAIL).then(showCopied).catch(() => {
-        // Clipboard API unavailable (e.g. non-https) surface the address instead
+
         emailLink.textContent = EMAIL;
         setTimeout(() => { emailLink.textContent = orig; }, TIMING.copiedAddressDelay);
       });
@@ -623,7 +623,7 @@ function playNavClick() {
   } catch(e) {}
 }
 // ── TYPING ──
-const TARGET="https://LosDenso.xyz";
+const TARGET="Densley | Linux System Engineer";
 function flashKey(ch, isSpace=false, isEnter=false){
   const k=document.querySelector(`#keyboard-wrap .key[data-char="${ch.toLowerCase()}"]`)
          ||document.querySelector('#keyboard-wrap .key[data-char=" "]');
