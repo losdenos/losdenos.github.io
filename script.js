@@ -623,7 +623,7 @@ function playNavClick() {
   } catch(e) {}
 }
 // ── TYPING ──
-const TARGET="Densley | Linux System Engineer";
+const TARGET="Densley's Portfolio";
 function flashKey(ch, isSpace=false, isEnter=false){
   const k=document.querySelector(`#keyboard-wrap .key[data-char="${ch.toLowerCase()}"]`)
          ||document.querySelector('#keyboard-wrap .key[data-char=" "]');
@@ -1493,7 +1493,7 @@ function launchTruckCanvas(page='about') {
     about: `
       <div class="about-content">
         <h1>ABOUT ME</h1>
-        <p>I am Densley, an aspiring Linux System Administrator based in Malaysia.</p>
+        <p>details</p>
         <div class="placeholder-text">[ More details soon. ]</div>
       </div>`,
     projects: `
